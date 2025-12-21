@@ -1,32 +1,50 @@
 local player = game.Players.LocalPlayer
-local mouse = player:GetMouse()
 
-function aimAt(target)
-    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-        local targetPosition = target.Character.HumanoidRootPart.Position
-        local myPosition = player.Character.HumanoidRootPart.Position
-        local direction = (targetPosition - myPosition).unit
-        local newCFrame = CFrame.new(myPosition, myPosition + direction)
-        player.Character.HumanoidRootPart.CFrame = newCFrame
-    end
-end
+-- ScreenGui
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name, gui.ResetOnSpawn = "MyScriptGui", false
 
-while true do
-    wait(0.1) -- 每0.1秒檢查一次
-    local closestEnemy = nil
-    local closestDistance = math.huge
 
-    for _, enemy in pairs(game.Players:GetPlayers()) do
-        if enemy ~= player and enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart") then
-            local distance = (player.Character.HumanoidRootPart.Position - enemy.Character.HumanoidRootPart.Position).magnitude
-            if distance < closestDistance then
-                closestDistance = distance
-                closestEnemy = enemy
-            end
-        end
-    end
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.fromOffset(300, 200)
+frame.Position = UDim2.fromScale(0.5, 0.5) - UDim2.fromOffset(150, 100)
+frame.BackgroundColor3 = Color3.fromRGB(35,35,35)
+frame.BorderSizePixel, frame.Active, frame.Draggable = 0, true, true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
 
-    if closestEnemy then
-        aimAt(closestEnemy)
-    end
-end
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,40)
+title.BackgroundColor3 = Color3.fromRGB(45,45,45)
+title.Text, title.TextSize = "Xu-hub", 18
+title.TextColor3, title.Font, title.BorderSizePixel =
+	Color3.new(1,1,1), Enum.Font.SourceSansBold, 0
+Instance.new("UICorner", title).CornerRadius = UDim.new(0,10)
+
+
+local btn = Instance.new("TextButton", frame)
+btn.Size = UDim2.fromOffset(200,50)
+btn.Position = UDim2.fromScale(0.5,0.5) + UDim2.fromOffset(-100,10)
+btn.Text, btn.TextSize = "我是你爹", 20
+btn.Font, btn.BorderSizePixel = Enum.Font.SourceSans, 0
+btn.BackgroundColor3, btn.TextColor3 =
+	Color3.fromRGB(0,150,255), Color3.new(1,1,1)
+Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+
+btn.MouseButton1Click:Connect(function()
+	print("功能已執行！")
+end)
+
+
+local close = Instance.new("TextButton", frame)
+close.Size = UDim2.fromOffset(30,30)
+close.Position = UDim2.new(1,-35,0,5)
+close.Text, close.Font, close.TextSize = "X", Enum.Font.SourceSansBold, 18
+close.BackgroundColor3, close.TextColor3 =
+	Color3.fromRGB(200,50,50), Color3.new(1,1,1)
+close.BorderSizePixel = 0
+Instance.new("UICorner", close).CornerRadius = UDim.new(1,0)
+
+close.MouseButton1Click:Connect(function()
+	gui:Destroy()
+end)
