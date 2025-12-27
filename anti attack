@@ -1,0 +1,84 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+-- 狀態
+local antiKnockbackEnabled = true
+local heartbeatConnection
+
+-- ========== 防擊退邏輯 ==========
+local function enableAntiKnockback(character)
+    local root = character:WaitForChild("HumanoidRootPart")
+
+    if heartbeatConnection then
+        heartbeatConnection:Disconnect()
+    end
+
+    heartbeatConnection = RunService.Heartbeat:Connect(function()
+        if antiKnockbackEnabled and root.Parent then
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+        end
+    end)
+end
+
+local function disableAntiKnockback()
+    if heartbeatConnection then
+        heartbeatConnection:Disconnect()
+        heartbeatConnection = nil
+    end
+end
+
+-- 角色生成
+local function onCharacterAdded(character)
+    if antiKnockbackEnabled then
+        enableAntiKnockback(character)
+    end
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+
+if player.Character then
+    onCharacterAdded(player.Character)
+end
+
+-- ========== GUI ==========
+local gui = Instance.new("ScreenGui")
+gui.Name = "AntiKnockbackGui"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.fromOffset(220, 50)
+button.Position = UDim2.fromScale(0.5, 0.85) - UDim2.fromOffset(110, 25)
+button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextScaled = true
+button.Parent = gui
+
+local function updateButton()
+    if antiKnockbackEnabled then
+        button.Text = "Anti-Knockback : ON"
+        button.BackgroundColor3 = Color3.fromRGB(40, 120, 40)
+    else
+        button.Text = "Anti-Knockback : OFF"
+        button.BackgroundColor3 = Color3.fromRGB(120, 40, 40)
+    end
+end
+
+updateButton()
+
+button.MouseButton1Click:Connect(function()
+    antiKnockbackEnabled = not antiKnockbackEnabled
+
+    if antiKnockbackEnabled then
+        if player.Character then
+            enableAntiKnockback(player.Character)
+        end
+    else
+        disableAntiKnockback()
+    end
+
+    updateButton()
+end)
