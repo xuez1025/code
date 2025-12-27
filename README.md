@@ -1,4 +1,4 @@
-# blox fruit pvp op
+# roblox script op
 
 ## script:
 #### steal a brainrot anti attack
