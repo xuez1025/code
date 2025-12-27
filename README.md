@@ -1,7 +1,7 @@
 # blox fruit pvp op
 
-### script:
-## steal a brainrot anti attack
+## script:
+### steal a brainrot anti attack
 ```loadstring(game:HttpGet("https://raw.githubusercontent.com/xuez1025/Xu/refs/heads/main/anti%20attack"))()```
 
 
