@@ -16,11 +16,29 @@ local allowedUsers = {
     
 }
 
+-- ================= 授權列表 =================
+local allowedUsers = {
+    [12345678] = true,
+    [87654321] = true,
+}
+
 -- ================= 權限檢查 =================
 if allowedUsers[player.UserId] ~= true then
-    player:Kick("You have been permanently banned. (Error Code: 267)")
-    return
-end
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "UnauthorizedGui"
+    gui.ResetOnSpawn = false
+    gui.Parent = player:WaitForChild("PlayerGui")
+
+    local frame = Instance.new("Frame")
+    frame.Parent = gui
+    frame.Size = UDim2.fromOffset(420, 220)
+    frame.Position = UDim2.fromScale(0.5, 0.5)
+    frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    frame.BorderSizePixel = 0
+    frame.ZIndex = 10
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
 
     -- ===== 標題 =====
     local title = Instance.new("TextLabel")
