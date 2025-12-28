@@ -16,76 +16,9 @@ local allowedUsers = {
     
 }
 
--- ================= 授權列表 =================
-local allowedUsers = {
-    [12345678] = true,
-    [87654321] = true,
-}
-
 -- ================= 權限檢查 =================
-if allowedUsers[player.UserId] ~= true then
-
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "UnauthorizedGui"
-    gui.ResetOnSpawn = false
-    gui.Parent = player:WaitForChild("PlayerGui")
-
-    local frame = Instance.new("Frame")
-    frame.Parent = gui
-    frame.Size = UDim2.fromOffset(420, 220)
-    frame.Position = UDim2.fromScale(0.5, 0.5)
-    frame.AnchorPoint = Vector2.new(0.5, 0.5)
-    frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    frame.BorderSizePixel = 0
-    frame.ZIndex = 10
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
-
-    -- ===== 標題 =====
-    local title = Instance.new("TextLabel")
-    title.Parent = frame
-    title.Size = UDim2.new(1, -30, 0, 36)
-    title.Position = UDim2.fromOffset(15, 12)
-    title.BackgroundTransparency = 1
-    title.Text = "連線中斷"
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 22
-    title.TextColor3 = Color3.new(1, 1, 1)
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.ZIndex = 11
-
-    -- ===== 說明文字 =====
-    local desc = Instance.new("TextLabel")
-    desc.Parent = frame
-    desc.Position = UDim2.fromOffset(15, 60)
-    desc.Size = UDim2.new(1, -30, 0, 80)
-    desc.BackgroundTransparency = 1
-    desc.TextWrapped = true
-    desc.TextYAlignment = Enum.TextYAlignment.Top
-    desc.TextXAlignment = Enum.TextXAlignment.Left
-    desc.Text = "你已遭此體驗的體驗審核人員踢出。\n\nYou have been permanently banned.\n(錯誤代碼：267)"
-    desc.Font = Enum.Font.Gotham
-    desc.TextSize = 14
-    desc.TextColor3 = Color3.fromRGB(200, 200, 200)
-    desc.ZIndex = 11
-
-    -- ===== 離開按鈕 =====
-    local button = Instance.new("TextButton")
-    button.Parent = frame
-    button.Size = UDim2.new(1, -40, 0, 40)
-    button.Position = UDim2.fromOffset(20, 160)
-    button.Text = "離開"
-    button.Font = Enum.Font.GothamBold
-    button.TextSize = 16
-    button.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextColor3 = Color3.new(0, 0, 0)
-    button.ZIndex = 11
-    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
-
-    button.MouseButton1Click:Connect(function()
-        player:Kick("You have been permanently banned. (Error Code: 267)")
-    end)
-
-    return
+if not allowedUsers[player.UserId] then
+    player:Kick("You have been permanently banned.")
 end
 
 print("授權通過，開始執行腳本")
