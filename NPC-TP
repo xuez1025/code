@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -9,31 +10,41 @@ local screenGui = Instance.new("ScreenGui", playerGui)
 
 -- Frame (UI 容器)
 local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 300, 0, 280)
-frame.Position = UDim2.new(0.5, -150, 0.5, -140)
-frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-frame.BackgroundTransparency = 0.1
-frame.BorderSizePixel = 0
+frame.Size = UDim2.new(0, 280, 0, 320)
+frame.Position = UDim2.new(0.5, -140, 0.5, -160)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 frame.ClipsDescendants = true
 frame.AnchorPoint = Vector2.new(0.5, 0.5)
-
 local uicorner = Instance.new("UICorner", frame)
 uicorner.CornerRadius = UDim.new(0, 15)
 
+-- 飛行狀態與控制變數
+local isFlying = false
+local flyConnection
+local baseSpeed = 0.1
+local hoverHeight = 5
+local RANGE_MAX = 2000
+local rangeValue = 500
+local targetNPC
+local draggingUI = false
+local dragOffset = Vector2.new(0, 0)
+local draggingSlider = false -- 滑桿拖動時阻止 UI 拖動
+
 -- 標題
 local titleLabel = Instance.new("TextLabel", frame)
-titleLabel.Size = UDim2.new(0, 300, 0, 30)
-titleLabel.Position = UDim2.new(0, 0, 0, 10)
+titleLabel.Size = UDim2.new(1, -50, 0, 30)
+titleLabel.Position = UDim2.new(0, 10, 0, 10)
 titleLabel.Text = "Xu-NPC TP"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.BackgroundTransparency = 1
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.Active = true
 
--- X 按鈕 (關閉 UI)
+-- X 按鈕
 local closeButton = Instance.new("TextButton", frame)
 closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(1, -35, 0, 10)
+closeButton.Position = UDim2.new(1, -40, 0, 10)
 closeButton.Text = "X"
 closeButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
 closeButton.TextColor3 = Color3.fromRGB(255,255,255)
@@ -45,7 +56,7 @@ cornerX.CornerRadius = UDim.new(0, 8)
 -- Toggle Fly 按鈕
 local toggleButton = Instance.new("TextButton", frame)
 toggleButton.Size = UDim2.new(0, 180, 0, 40)
-toggleButton.Position = UDim2.new(0, 60, 0, 50)
+toggleButton.Position = UDim2.new(0.5, -90, 0, 60)
 toggleButton.Text = "飛行: OFF"
 toggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -56,28 +67,27 @@ cornerToggle.CornerRadius = UDim.new(0, 8)
 
 -- 提示文字
 local infoLabel = Instance.new("TextLabel", frame)
-infoLabel.Size = UDim2.new(0, 260, 0, 25)
-infoLabel.Position = UDim2.new(0, 20, 0, 95)
+infoLabel.Size = UDim2.new(0, 240, 0, 25)
+infoLabel.Position = UDim2.new(0.5, -120, 0, 110)
 infoLabel.Text = ""
 infoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 infoLabel.BackgroundTransparency = 1
 infoLabel.TextScaled = true
 infoLabel.Font = Enum.Font.SourceSansBold
 
--- HoverHeight 顯示
+-- HoverHeight 顯示與滑桿
 local hoverLabel = Instance.new("TextLabel", frame)
-hoverLabel.Size = UDim2.new(0, 150, 0, 25)
-hoverLabel.Position = UDim2.new(0, 20, 0, 125)
+hoverLabel.Size = UDim2.new(0, 240, 0, 25)
+hoverLabel.Position = UDim2.new(0.5, -120, 0, 140)
 hoverLabel.Text = "飛行高度: 5"
 hoverLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 hoverLabel.BackgroundTransparency = 1
 hoverLabel.TextScaled = true
 hoverLabel.Font = Enum.Font.SourceSans
 
--- HoverHeight 滑桿
 local sliderHover = Instance.new("Frame", frame)
-sliderHover.Size = UDim2.new(0, 260, 0, 20)
-sliderHover.Position = UDim2.new(0, 20, 0, 155)
+sliderHover.Size = UDim2.new(0, 240, 0, 20)
+sliderHover.Position = UDim2.new(0.5, -120, 0, 170)
 sliderHover.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 local cornerHover = Instance.new("UICorner", sliderHover)
 cornerHover.CornerRadius = UDim.new(0, 10)
@@ -88,40 +98,28 @@ handleHover.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 local handleCorner = Instance.new("UICorner", handleHover)
 handleCorner.CornerRadius = UDim.new(0, 10)
 
--- Range 顯示 (加上單位 m)
+-- Range 顯示與滑桿
 local rangeLabel = Instance.new("TextLabel", frame)
-rangeLabel.Size = UDim2.new(0, 180, 0, 25)
-rangeLabel.Position = UDim2.new(0, 20, 0, 185)
+rangeLabel.Size = UDim2.new(0, 240, 0, 25)
+rangeLabel.Position = UDim2.new(0.5, -120, 0, 200)
 rangeLabel.Text = "範圍: 500 m"
 rangeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 rangeLabel.BackgroundTransparency = 1
 rangeLabel.TextScaled = true
 rangeLabel.Font = Enum.Font.SourceSans
 
--- Range 滑桿
 local sliderRange = Instance.new("Frame", frame)
-sliderRange.Size = UDim2.new(0, 260, 0, 20)
-sliderRange.Position = UDim2.new(0, 20, 0, 215)
+sliderRange.Size = UDim2.new(0, 240, 0, 20)
+sliderRange.Position = UDim2.new(0.5, -120, 0, 230)
 sliderRange.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 local cornerRange = Instance.new("UICorner", sliderRange)
 cornerRange.CornerRadius = UDim.new(0, 10)
 local handleRange = Instance.new("Frame", sliderRange)
 handleRange.Size = UDim2.new(0, 20, 1, 0)
-handleRange.Position = UDim2.new(500/2000, -10, 0, 0) -- 初始 500m
+handleRange.Position = UDim2.new(500/2000, -10, 0, 0)
 handleRange.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
 local handleRangeCorner = Instance.new("UICorner", handleRange)
 handleRangeCorner.CornerRadius = UDim.new(0, 10)
-
--- 飛行變數
-local isFlying = false
-local flyConnection
-local baseSpeed = 0.1 -- 初始慢速
-local hoverHeight = 5
-local RANGE_MAX = 2000 -- 上限 2000 米
-local rangeValue = 500  -- 初始值 500 米
-local targetNPC
-local draggingHover = false
-local draggingRange = false
 
 -- 停止飛行函式
 local function stopFlying()
@@ -184,11 +182,21 @@ local function toggleFly()
 end
 toggleButton.MouseButton1Click:Connect(toggleFly)
 
--- 滑桿控制
+-- 滑桿控制函式
 local function updateSlider(slider, handle, maxValue, label, isHover)
     local dragging = false
-    handle.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end end)
-    handle.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            draggingSlider = true
+        end
+    end)
+    handle.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+            draggingSlider = false
+        end
+    end)
     local function update(input)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local mouseX = input.Position.X
@@ -212,10 +220,29 @@ end
 updateSlider(sliderHover, handleHover, 50, hoverLabel, true)
 updateSlider(sliderRange, handleRange, RANGE_MAX, rangeLabel, false)
 
+-- UI 拖動（滑桿拖動時不觸發）
+titleLabel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and not draggingSlider then
+        draggingUI = true
+        local mousePos = UserInputService:GetMouseLocation()
+        dragOffset = Vector2.new(mousePos.X - frame.AbsolutePosition.X, mousePos.Y - frame.AbsolutePosition.Y)
+    end
+end)
+titleLabel.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingUI = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if draggingUI and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local mousePos = UserInputService:GetMouseLocation()
+        frame.Position = UDim2.new(0, mousePos.X - dragOffset.X, 0, mousePos.Y - dragOffset.Y)
+    end
+end)
+
 -- X 按鈕關閉
 closeButton.MouseButton1Click:Connect(function()
     stopFlying()
-    draggingHover = false
-    draggingRange = false
+    draggingSlider = false
     screenGui:Destroy()
 end)
