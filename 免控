@@ -15,53 +15,72 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 -- ================= 授權列表 =================
--- 使用者 UserId 清單，可替換成實際授權玩家
--- 可擴展成權限等級，例如 true = 可用，false = 不可用
 local allowedUsers = {
-    [7459494764] = true, -- 玩家1
+    [7459494764] = true,
     
 }
 
 -- ================= 權限檢查 =================
-local function checkAuthorization()
+local function isAuthorized()
     return allowedUsers[player.UserId] == true
 end
 
--- ================= 權限處理 =================
-if not checkAuthorization() then
-    -- 防止重複生成 GUI
+-- ================= 未授權處理 =================
+if not isAuthorized() then
     if not player.PlayerGui:FindFirstChild("UnauthorizedGui") then
         local gui = Instance.new("ScreenGui")
         gui.Name = "UnauthorizedGui"
+        gui.ResetOnSpawn = false
         gui.Parent = player:WaitForChild("PlayerGui")
 
         local frame = Instance.new("Frame", gui)
-        frame.Size = UDim2.fromOffset(300, 100)
+        frame.Size = UDim2.fromOffset(360, 160)
         frame.Position = UDim2.fromScale(0.5, 0.5)
         frame.AnchorPoint = Vector2.new(0.5, 0.5)
-        frame.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+        frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
         frame.BorderSizePixel = 0
         Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
 
-        local label = Instance.new("TextLabel", frame)
-        label.Size = UDim2.new(1, 0, 1, 0)
-        label.BackgroundTransparency = 1
-        label.Text = "未得授權"
-        label.Font = Enum.Font.GothamBold
-        label.TextSize = 24
-        label.TextColor3 = Color3.new(1, 1, 1)
-        label.TextXAlignment = Enum.TextXAlignment.Center
-        label.TextYAlignment = Enum.TextYAlignment.Center
+        local title = Instance.new("TextLabel", frame)
+        title.Size = UDim2.new(1, -20, 0, 40)
+        title.Position = UDim2.fromOffset(10, 10)
+        title.BackgroundTransparency = 1
+        title.Text = "連線中斷"
+        title.Font = Enum.Font.GothamBold
+        title.TextSize = 20
+        title.TextColor3 = Color3.new(1, 1, 1)
+        title.TextXAlignment = Center
+
+        local desc = Instance.new("TextLabel", frame)
+        desc.Size = UDim2.new(1, -20, 0, 40)
+        desc.Position = UDim2.fromOffset(10, 55)
+        desc.BackgroundTransparency = 1
+        desc.Text = "你已遭此體驗的體驗審核人員踢出。\nYou have been permanently banned."
+        desc.Font = Enum.Font.Gotham
+        desc.TextSize = 14
+        desc.TextWrapped = true
+        desc.TextColor3 = Color3.fromRGB(200, 200, 200)
+
+        local button = Instance.new("TextButton", frame)
+        button.Size = UDim2.new(1, -40, 0, 36)
+        button.Position = UDim2.fromOffset(20, 110)
+        button.Text = "離開"
+        button.Font = Enum.Font.GothamBold
+        button.TextSize = 16
+        button.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        button.TextColor3 = Color3.new(0, 0, 0)
+        Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+
+        button.MouseButton1Click:Connect(function()
+            player:Kick("You have been permanently banned. (Error Code: 267)")
+        end)
     end
 
-    -- 停止腳本
     return
 end
 
--- ================= 以下放有權限才能執行的腳本 =================
-print("授權通過，開始執行腳本！")
-
--- 這裡可以放你後續要執行的功能
+-- ================= 授權通過 =================
+print("授權通過，開始執行腳本")
 
 -- ================= Settings =================
 local ROTATION_SPEED = 2000 -- 高速旋轉（度 / 秒）
