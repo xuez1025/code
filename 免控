@@ -21,23 +21,24 @@ local allowedUsers = {
     [7270812903] = true,
 }
 
--- ================= 權限檢查 =================
 if not allowedUsers[player.UserId] then
     player:Kick("You have been permanently banned.")
 end
-
 print("授權通過，開始執行腳本")
 
 -- ================= Settings =================
-local ROTATION_SPEED = 2000 -- 高速旋轉（度 / 秒）
-local SLIDE_MAGNITUDE = 350   -- 水平移動速度
-local JUMP_HEIGHT = 100      -- 空中移動增幅
+local ROTATION_SPEED = 2000
+local SLIDE_MAGNITUDE = 350
+local JUMP_HEIGHT = 100
 local rotating = false
 local rotationConn
 local currentYaw = 0
+local moveKeys = {W=false,A=false,S=false,D=false}
+local jumpHold = false
 local uiActive = true
-local moveKeys = {W=false, A=false, S=false, D=false}
-local jumpHold = false -- 按住空白鍵
+local isMinimized = false
+local normalSize, normalPos
+local autoDockTask
 
 -- ================= Character Setup =================
 local function setupCharacter(char)
@@ -46,205 +47,256 @@ local function setupCharacter(char)
     humanoid = char:WaitForChild("Humanoid")
     humanoid.AutoRotate = false
 end
-
 setupCharacter(player.Character or player.CharacterAdded:Wait())
 player.CharacterAdded:Connect(setupCharacter)
 
 -- ================= WASD & Jump =================
-UserInputService.InputBegan:Connect(function(input, gpe)
+UserInputService.InputBegan:Connect(function(input,gpe)
     if gpe then return end
-    if input.KeyCode == Enum.KeyCode.W then moveKeys.W = true end
-    if input.KeyCode == Enum.KeyCode.A then moveKeys.A = true end
-    if input.KeyCode == Enum.KeyCode.S then moveKeys.S = true end
-    if input.KeyCode == Enum.KeyCode.D then moveKeys.D = true end
-    if input.KeyCode == Enum.KeyCode.Space then jumpHold = true end
+    if input.KeyCode==Enum.KeyCode.W then moveKeys.W=true end
+    if input.KeyCode==Enum.KeyCode.A then moveKeys.A=true end
+    if input.KeyCode==Enum.KeyCode.S then moveKeys.S=true end
+    if input.KeyCode==Enum.KeyCode.D then moveKeys.D=true end
+    if input.KeyCode==Enum.KeyCode.Space then jumpHold=true end
 end)
 
-UserInputService.InputEnded:Connect(function(input, gpe)
-    if input.KeyCode == Enum.KeyCode.W then moveKeys.W = false end
-    if input.KeyCode == Enum.KeyCode.A then moveKeys.A = false end
-    if input.KeyCode == Enum.KeyCode.S then moveKeys.S = false end
-    if input.KeyCode == Enum.KeyCode.D then moveKeys.D = false end
-    if input.KeyCode == Enum.KeyCode.Space then jumpHold = false end
+UserInputService.InputEnded:Connect(function(input,gpe)
+    if input.KeyCode==Enum.KeyCode.W then moveKeys.W=false end
+    if input.KeyCode==Enum.KeyCode.A then moveKeys.A=false end
+    if input.KeyCode==Enum.KeyCode.S then moveKeys.S=false end
+    if input.KeyCode==Enum.KeyCode.D then moveKeys.D=false end
+    if input.KeyCode==Enum.KeyCode.Space then jumpHold=false end
 end)
 
--- ================= Rotation & JumpFly =================
+-- ================= Rotation =================
 local function startRotation()
     if rotating then return end
-    rotating = true
-    currentYaw = root.Orientation.Y
-
+    rotating=true
+    currentYaw=root.Orientation.Y
     rotationConn = RunService.RenderStepped:Connect(function(dt)
-        currentYaw += ROTATION_SPEED * dt
-
-        -- 攝影機方向滑行
+        currentYaw += ROTATION_SPEED*dt
         local camCFrame = Workspace.CurrentCamera.CFrame
-        local camLook = Vector3.new(camCFrame.LookVector.X, 0, camCFrame.LookVector.Z)
-        local camRight = Vector3.new(camCFrame.RightVector.X, 0, camCFrame.RightVector.Z)
-
+        local camLook = Vector3.new(camCFrame.LookVector.X,0,camCFrame.LookVector.Z)
+        local camRight = Vector3.new(camCFrame.RightVector.X,0,camCFrame.RightVector.Z)
         local direction = Vector3.new(0,0,0)
-        if moveKeys.W then direction += camLook end
-        if moveKeys.S then direction -= camLook end
-        if moveKeys.A then direction -= camRight end
-        if moveKeys.D then direction += camRight end
-
-        if direction.Magnitude > 0 then
-            direction = direction.Unit
-        end
-
-        -- 計算位移
-        local deltaPos = direction * SLIDE_MAGNITUDE * dt
-        if jumpHold then
-            deltaPos = deltaPos + Vector3.new(0, JUMP_HEIGHT * dt, 0)
-        end
-
-        root.CFrame = CFrame.new(root.Position + deltaPos) * CFrame.Angles(0, math.rad(currentYaw), 0)
+        if moveKeys.W then direction+=camLook end
+        if moveKeys.S then direction-=camLook end
+        if moveKeys.A then direction-=camRight end
+        if moveKeys.D then direction+=camRight end
+        if direction.Magnitude>0 then direction=direction.Unit end
+        local deltaPos=direction*SLIDE_MAGNITUDE*dt
+        if jumpHold then deltaPos+=Vector3.new(0,JUMP_HEIGHT*dt,0) end
+        root.CFrame=CFrame.new(root.Position+deltaPos)*CFrame.Angles(0,math.rad(currentYaw),0)
     end)
 end
 
 local function stopRotation()
-    rotating = false
-    if rotationConn then
-        rotationConn:Disconnect()
-        rotationConn = nil
-    end
+    rotating=false
+    if rotationConn then rotationConn:Disconnect() rotationConn=nil end
 end
 
 local function toggleRotation()
-    if rotating then
-        stopRotation()
-    else
-        startRotation()
-    end
+    if rotating then stopRotation() else startRotation() end
+    updateButton()
 end
 
 -- ================= UI =================
 local gui = Instance.new("ScreenGui")
-gui.Name = "SpinControlGui"
-gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
+gui.Name="SpinControlGui"
+gui.ResetOnSpawn=false
+gui.Parent=player:WaitForChild("PlayerGui")
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromOffset(220, 120)
-frame.Position = UDim2.fromScale(0.5, 0.8)
-frame.AnchorPoint = Vector2.new(0.5, 0.5)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BorderSizePixel = 0
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+local frame=Instance.new("Frame",gui)
+frame.Size=UDim2.fromOffset(220,120)
+frame.Position=UDim2.fromScale(0.5,0.8)
+frame.AnchorPoint=Vector2.new(0.5,0.5)
+frame.BackgroundColor3=Color3.fromRGB(30,30,30)
+frame.BorderSizePixel=0
+Instance.new("UICorner",frame).CornerRadius=UDim.new(0,12)
 
--- Title Bar (可拖動)
-local titleBar = Instance.new("Frame", frame)
-titleBar.Size = UDim2.new(1, 0, 0, 36)
-titleBar.BackgroundTransparency = 1
+local titleBar=Instance.new("Frame",frame)
+titleBar.Size=UDim2.new(1,0,0,36)
+titleBar.BackgroundTransparency=1
 
-local title = Instance.new("TextLabel", titleBar)
-title.Size = UDim2.new(0.55, -5, 1, 0)
-title.Position = UDim2.fromOffset(10, 0)
-title.BackgroundTransparency = 1
-title.Text = "Xu-免控"
-title.Font = Enum.Font.GothamBold
-title.TextSize = 20
-title.TextColor3 = Color3.new(1, 1, 1)
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.TextYAlignment = Enum.TextYAlignment.Center
+local title=Instance.new("TextLabel",titleBar)
+title.Size=UDim2.new(0.55,-5,1,0)
+title.Position=UDim2.fromOffset(10,0)
+title.BackgroundTransparency=1
+title.Text="Xu-免控"
+title.Font=Enum.Font.GothamBold
+title.TextSize=20
+title.TextColor3=Color3.new(1,1,1)
+title.TextXAlignment=Enum.TextXAlignment.Left
+title.TextYAlignment=Enum.TextYAlignment.Center
 
-local shortcutLabel = Instance.new("TextLabel", titleBar)
-shortcutLabel.Size = UDim2.new(0.3, -5, 1, 0)
-shortcutLabel.Position = UDim2.new(0.55, 5, 0, 0)
-shortcutLabel.BackgroundTransparency = 1
-shortcutLabel.Text = "快捷鍵 U"
-shortcutLabel.Font = Enum.Font.Gotham
-shortcutLabel.TextSize = 16
-shortcutLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-shortcutLabel.TextXAlignment = Enum.TextXAlignment.Left
-shortcutLabel.TextYAlignment = Enum.TextYAlignment.Center
-
--- 拖動功能
-local dragging = false
-local dragInput, dragStart, startPos
-titleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-titleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
--- Close Button
-local closeBtn = Instance.new("TextButton", frame)
-closeBtn.Size = UDim2.fromOffset(24, 24)
-closeBtn.Position = UDim2.fromScale(1, 0)
-closeBtn.AnchorPoint = Vector2.new(1, 0)
-closeBtn.Text = "x"
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 16
-closeBtn.BackgroundColor3 = Color3.fromRGB(160, 60, 60)
-closeBtn.TextColor3 = Color3.new(1, 1, 1)
-closeBtn.BorderSizePixel = 0
-Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
+-- ================= Buttons =================
+local closeBtn=Instance.new("TextButton",frame)
+closeBtn.Size=UDim2.fromOffset(24,24)
+closeBtn.Position=UDim2.fromScale(1,0)
+closeBtn.AnchorPoint=Vector2.new(1,0)
+closeBtn.Text="x"
+closeBtn.Font=Enum.Font.GothamBold
+closeBtn.TextSize=16
+closeBtn.BackgroundColor3=Color3.fromRGB(160,60,60)
+closeBtn.TextColor3=Color3.new(1,1,1)
+closeBtn.BorderSizePixel=0
+Instance.new("UICorner",closeBtn).CornerRadius=UDim.new(1,0)
 closeBtn.MouseButton1Click:Connect(function()
     stopRotation()
     gui:Destroy()
-    uiActive = false
+    uiActive=false
 end)
 
--- Toggle Button
-local toggleBtn = Instance.new("TextButton", frame)
-toggleBtn.Size = UDim2.fromOffset(140, 36)
-toggleBtn.Position = UDim2.fromScale(0.5, 0.65)
-toggleBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.TextSize = 16
-toggleBtn.BorderSizePixel = 0
-toggleBtn.TextColor3 = Color3.new(1, 1, 1)
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
+local toggleBtn=Instance.new("TextButton",frame)
+toggleBtn.Size=UDim2.fromOffset(140,36)
+toggleBtn.Position=UDim2.fromScale(0.5,0.65)
+toggleBtn.AnchorPoint=Vector2.new(0.5,0.5)
+toggleBtn.Font=Enum.Font.GothamBold
+toggleBtn.TextSize=16
+toggleBtn.BorderSizePixel=0
+toggleBtn.TextColor3=Color3.new(1,1,1)
+Instance.new("UICorner",toggleBtn).CornerRadius=UDim.new(0,8)
 
-local function updateButton()
-    if rotating then
-        toggleBtn.Text = "ON"
-        toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 90)
+local minimizeBtn=Instance.new("TextButton",frame)
+minimizeBtn.Size=UDim2.fromOffset(24,24)
+minimizeBtn.Position=UDim2.fromOffset(frame.Size.X.Offset-56,6)
+minimizeBtn.Text="-"
+minimizeBtn.Font=Enum.Font.GothamBold
+minimizeBtn.TextSize=18
+minimizeBtn.BackgroundColor3=Color3.fromRGB(80,80,80)
+minimizeBtn.TextColor3=Color3.new(1,1,1)
+minimizeBtn.BorderSizePixel=0
+Instance.new("UICorner",minimizeBtn).CornerRadius=UDim.new(1,0)
+
+-- ================= Minimize / Restore Toggle =================
+local function dockToEdge()
+    if not isMinimized then return end
+    local screenX, screenY = workspace.CurrentCamera.ViewportSize.X, workspace.CurrentCamera.ViewportSize.Y
+    local frameX = frame.AbsolutePosition.X + frame.AbsoluteSize.X/2
+
+    local targetX
+    if frameX < screenX/2 then
+        targetX = UDim2.new(0, -frame.Size.X.Offset/2, frame.Position.Y.Scale, frame.Position.Y.Offset)
     else
-        toggleBtn.Text = "OFF"
-        toggleBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+        targetX = UDim2.new(0, screenX - frame.Size.X.Offset/2, frame.Position.Y.Scale, frame.Position.Y.Offset)
+    end
+
+    frame:TweenPosition(targetX, "Out", "Quad", 0.3, true)
+end
+
+local function toggleMinimize()
+    if isMinimized then
+        -- 還原 UI
+        isMinimized = false
+        frame.Size = normalSize
+        frame.Position = normalPos
+        toggleBtn.Visible = true
+        closeBtn.Visible = true
+        minimizeBtn.Visible = true
+        updateButton()
+        if autoDockTask then
+            autoDockTask:Cancel()
+            autoDockTask = nil
+        end
+    else
+        -- 縮小 UI
+        isMinimized = true
+        normalSize = frame.Size
+        normalPos = frame.Position
+        frame.Size = UDim2.fromOffset(70,70)
+        toggleBtn.Visible = false
+        closeBtn.Visible = false
+        minimizeBtn.Visible = false
+        updateButton()
+
+        -- 延遲 3 秒自動貼邊
+        if autoDockTask then autoDockTask:Cancel() end
+        autoDockTask = task.delay(3, dockToEdge)
     end
 end
 
-toggleBtn.MouseButton1Click:Connect(function()
-    toggleRotation()
-    updateButton()
-end)
+minimizeBtn.MouseButton1Click:Connect(toggleMinimize)
 
--- Keyboard Shortcut U
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if not uiActive then return end
-    if input.KeyCode == Enum.KeyCode.U then
-        toggleRotation()
-        updateButton()
+-- 點擊縮小正方形還原 UI
+frame.InputBegan:Connect(function(input)
+    if isMinimized and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        toggleMinimize()
     end
 end)
 
+-- ================= Update Button =================
+function updateButton()
+    if isMinimized then
+        -- 縮小狀態文字置中放大
+        title.Size = UDim2.new(1,0,1,0)
+        title.Position = UDim2.new(0,0,0,0)
+        title.TextScaled = true
+        title.TextXAlignment = Enum.TextXAlignment.Center
+        title.TextYAlignment = Enum.TextYAlignment.Center
+
+        if rotating then
+            frame.BackgroundColor3 = Color3.fromRGB(60,180,90)
+            title.Text = "ON"
+        else
+            frame.BackgroundColor3 = Color3.fromRGB(180,60,60)
+            title.Text = "OFF"
+        end
+        toggleBtn.Visible = false
+    else
+        -- 正常狀態
+        title.Size = UDim2.new(0.55,-5,1,0)
+        title.Position = UDim2.fromOffset(10,0)
+        title.TextScaled = false
+        title.TextXAlignment = Enum.TextXAlignment.Left
+        title.TextYAlignment = Enum.TextYAlignment.Center
+
+        toggleBtn.Visible = true
+        if rotating then
+            toggleBtn.Text = "ON"
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(60,180,90)
+        else
+            toggleBtn.Text = "OFF"
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(180,60,60)
+        end
+        frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+        title.Text = "Xu-免控"
+    end
+end
 updateButton()
+
+-- ================= Drag =================
+local dragging = false
+local dragStart, startPos
+
+local function onPress(input)
+    if not input or (input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch) then return end
+    if isMinimized then return end -- 縮小狀態不拖動
+    dragStart = input.Position
+    startPos = frame.Position
+    dragging = false
+end
+
+local function onMove(input)
+    if not dragStart or isMinimized then return end
+    local delta = input.Position - dragStart
+    if delta.Magnitude > 5 then
+        dragging = true
+    end
+    frame.Position = UDim2.new(
+        startPos.X.Scale, startPos.X.Offset + delta.X,
+        startPos.Y.Scale, startPos.Y.Offset + delta.Y
+    )
+end
+
+local function onRelease(input)
+    dragStart = nil
+    dragging = false
+end
+
+titleBar.InputBegan:Connect(onPress)
+titleBar.InputChanged:Connect(onMove)
+UserInputService.InputChanged:Connect(onMove)
+titleBar.InputEnded:Connect(onRelease)
+
+-- ================= Toggle Button =================
+toggleBtn.MouseButton1Click:Connect(toggleRotation)
