@@ -6,6 +6,23 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
+-- ================= Services =================
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- ================= 授權列表 =================
+local allowedUsers = {
+    [7459494764] = true,
+}
+
+-- ================= 權限檢查 =================
+if allowedUsers[player.UserId] ~= true then
+    player:Kick("You have been permanently banned.")
+    return
+end
+
+print("授權通過，開始執行腳本")
+
 -- ===== FastAttack 核心 =====
 local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
