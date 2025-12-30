@@ -76,6 +76,7 @@ titleLabel.Font = Enum.Font.SourceSansBold
 titleLabel.TextSize = 32
 titleLabel.Parent = titleBar
 
+-- 關閉按鈕
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0,30,0,30)
 closeBtn.Position = UDim2.new(1,-40,0,10)
@@ -87,6 +88,35 @@ closeBtn.Parent = titleBar
 closeBtn.MouseButton1Click:Connect(function()
     mainFrame:Destroy()
     toggleBtn:Destroy()
+end)
+
+-- 縮小化按鈕 (-)
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0,30,0,30)
+minimizeBtn.Position = UDim2.new(1,-80,0,10)
+minimizeBtn.Text = "-"
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+minimizeBtn.BackgroundTransparency = 0.2
+minimizeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+minimizeBtn.Parent = titleBar
+
+local isMinimized = false
+local originalSize = mainFrame.Size
+local originalPosition = mainFrame.Position
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    if not isMinimized then
+        mainFrame.Size = UDim2.new(0, originalSize.X.Offset, 0, titleBar.Size.Y.Offset)
+        isMinimized = true
+        contentFrame.Visible = false
+        sideBar.Visible = false
+    else
+        mainFrame.Size = originalSize
+        mainFrame.Position = originalPosition
+        isMinimized = false
+        contentFrame.Visible = true
+        sideBar.Visible = true
+    end
 end)
 
 -- 左側側欄
@@ -298,6 +328,35 @@ end
 -- 顯示 / 隱藏主框架
 toggleBtn.MouseButton1Click:Connect(function()
     mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- ===== 可拖動功能 =====
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+titleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        UserInputService.InputChanged:Connect(function(moveInput)
+            if dragging and moveInput.UserInputType == Enum.UserInputType.MouseMovement then
+                local delta = moveInput.Position - dragStart
+                mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end)
+    end
 end)
 
 -- ===== FastAttack 核心執行 =====
