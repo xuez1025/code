@@ -3,25 +3,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
-
--- ================= Services =================
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-
--- ================= 授權列表 =================
-local allowedUsers = {
-    [7459494764] = true,
-}
-
--- ================= 權限檢查 =================
-if allowedUsers[player.UserId] ~= true then
-    player:Kick("You have been permanently banned.")
-    return
-end
-
-print("授權通過，開始執行腳本")
 
 -- ===== FastAttack 核心 =====
 local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
@@ -121,21 +107,6 @@ local isMinimized = false
 local originalSize = mainFrame.Size
 local originalPosition = mainFrame.Position
 
-minimizeBtn.MouseButton1Click:Connect(function()
-    if not isMinimized then
-        mainFrame.Size = UDim2.new(0, originalSize.X.Offset, 0, titleBar.Size.Y.Offset)
-        isMinimized = true
-        contentFrame.Visible = false
-        sideBar.Visible = false
-    else
-        mainFrame.Size = originalSize
-        mainFrame.Position = originalPosition
-        isMinimized = false
-        contentFrame.Visible = true
-        sideBar.Visible = true
-    end
-end)
-
 -- 左側側欄
 local sideBar = Instance.new("ScrollingFrame")
 sideBar.Size = UDim2.new(0,180,1,-50)
@@ -160,6 +131,22 @@ contentFrame.Parent = mainFrame
 local contentCorner = Instance.new("UICorner")
 contentCorner.CornerRadius = UDim.new(0,10)
 contentCorner.Parent = contentFrame
+
+-- 縮小功能
+minimizeBtn.MouseButton1Click:Connect(function()
+    if not isMinimized then
+        mainFrame.Size = UDim2.new(0, originalSize.X.Offset, 0, titleBar.Size.Y.Offset)
+        isMinimized = true
+        contentFrame.Visible = false
+        sideBar.Visible = false
+    else
+        mainFrame.Size = originalSize
+        mainFrame.Position = originalPosition
+        isMinimized = false
+        contentFrame.Visible = true
+        sideBar.Visible = true
+    end
+end)
 
 -- ===== 側欄按鈕 (PVP + XXX2~XXX10) =====
 local buttons = {}
@@ -187,7 +174,7 @@ for i=1,10 do
     buttons[i] = {Button = btn, Indicator = indicator}
 end
 
--- ===== PVP / 其他右側內容生成函數 =====
+-- ===== 右側內容生成函數 =====
 local function createOptionRow(parent, yPos, labelText, contentFunc)
     local rowFrame = Instance.new("Frame")
     rowFrame.Size = UDim2.new(1,-20,0,50)
@@ -214,47 +201,56 @@ local function createOptionRow(parent, yPos, labelText, contentFunc)
     return rowFrame
 end
 
+-- ===== 顯示右側內容 =====
 local function showContent(index)
     contentFrame:ClearAllChildren()
     for i,b in ipairs(buttons) do
         b.Indicator.Visible = (i==index)
     end
 
-    local y = 10
     if index == 1 then -- PVP
-        -- 自動攻擊 ON/OFF
+        local y = 10
+        -- 自動攻擊滑動開關
         createOptionRow(contentFrame, y, "自動攻擊:", function(row)
-            local onBtn = Instance.new("TextButton")
-            onBtn.Size = UDim2.new(0,50,0.6,0)
-            onBtn.Position = UDim2.new(0,130,0.2,0)
-            onBtn.Text = "ON"
-            onBtn.TextScaled = true
-            onBtn.BackgroundColor3 = Settings.AutoClick and Color3.fromRGB(0,200,0) or Color3.fromRGB(70,70,70)
-            onBtn.TextColor3 = Color3.fromRGB(255,255,255)
-            onBtn.Parent = row
-            local offBtn = Instance.new("TextButton")
-            offBtn.Size = UDim2.new(0,50,0.6,0)
-            offBtn.Position = UDim2.new(0,190,0.2,0)
-            offBtn.Text = "OFF"
-            offBtn.TextScaled = true
-            offBtn.BackgroundColor3 = Settings.AutoClick and Color3.fromRGB(70,70,70) or Color3.fromRGB(200,0,0)
-            offBtn.TextColor3 = Color3.fromRGB(255,255,255)
-            offBtn.Parent = row
+            local switchBg = Instance.new("Frame")
+            switchBg.Size = UDim2.new(0,60,0.5,0)
+            switchBg.Position = UDim2.new(0,150,0.25,0)
+            switchBg.BackgroundColor3 = Settings.AutoClick and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
+            switchBg.BorderSizePixel = 0
+            switchBg.Parent = row
+            local switchCorner = Instance.new("UICorner")
+            switchCorner.CornerRadius = UDim.new(0,20)
+            switchCorner.Parent = switchBg
 
-            onBtn.MouseButton1Click:Connect(function()
-                Settings.AutoClick = true
-                onBtn.BackgroundColor3 = Color3.fromRGB(0,200,0)
-                offBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
-            end)
-            offBtn.MouseButton1Click:Connect(function()
-                Settings.AutoClick = false
-                offBtn.BackgroundColor3 = Color3.fromRGB(200,0,0)
-                onBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+            local knob = Instance.new("Frame")
+            knob.Size = UDim2.new(0,28,1,0)
+            knob.Position = Settings.AutoClick and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
+            knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+            knob.BorderSizePixel = 0
+            knob.Parent = switchBg
+            local knobCorner = Instance.new("UICorner")
+            knobCorner.CornerRadius = UDim.new(0,20)
+            knobCorner.Parent = knob
+
+            local toggled = Settings.AutoClick
+            local function toggleSwitch()
+                toggled = not toggled
+                Settings.AutoClick = toggled
+                if toggled then
+                    knob:TweenPosition(UDim2.new(1, -28, 0, 0), "Out", "Quad", 0.2, true)
+                    switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
+                else
+                    knob:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Quad", 0.2, true)
+                    switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+                end
+            end
+            switchBg.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then toggleSwitch() end
             end)
         end)
-        y = y + 60
 
-        -- 攻擊距離
+        y = y + 60
+        -- 攻擊距離滑條
         createOptionRow(contentFrame, y, "攻擊距離:", function(row)
             local inputBox = Instance.new("TextBox")
             inputBox.Size = UDim2.new(0,80,0.6,0)
@@ -319,19 +315,103 @@ local function showContent(index)
                 end
             end)
         end)
+
         y = y + 60
-    else
-        -- 其他按鈕內容也改成底色選項
-        createOptionRow(contentFrame, y, "選項"..index, function(row)
-            local infoLabel = Instance.new("TextLabel")
-            infoLabel.Size = UDim2.new(1,-20,1,0)
-            infoLabel.Position = UDim2.new(0,10,0,0)
-            infoLabel.Text = "這是 XXX"..index.." 的功能區"
-            infoLabel.TextColor3 = Color3.fromRGB(255,255,255)
-            infoLabel.BackgroundTransparency = 1
-            infoLabel.TextScaled = true
-            infoLabel.TextXAlignment = Enum.TextXAlignment.Left
-            infoLabel.Parent = row
+        -- ===== PVP WASD 自動旋轉滑動開關 =====
+        local pvpMovementEnabled = false
+        local ROTATION_SPEED = 2000
+        local SLIDE_MAGNITUDE = 350
+        local JUMP_HEIGHT = 100
+        local moveKeys = {W=false,A=false,S=false,D=false}
+        local jumpHold = false
+        local currentYaw = 0
+        local character, root, humanoid
+
+        -- Character Setup
+        local function setupCharacter(char)
+            character = char
+            root = char:WaitForChild("HumanoidRootPart")
+            humanoid = char:WaitForChild("Humanoid")
+            humanoid.AutoRotate = false
+        end
+        setupCharacter(player.Character or player.CharacterAdded:Wait())
+        player.CharacterAdded:Connect(setupCharacter)
+
+        -- Input
+        UserInputService.InputBegan:Connect(function(input,gpe)
+            if gpe then return end
+            if input.KeyCode==Enum.KeyCode.W then moveKeys.W=true end
+            if input.KeyCode==Enum.KeyCode.A then moveKeys.A=true end
+            if input.KeyCode==Enum.KeyCode.S then moveKeys.S=true end
+            if input.KeyCode==Enum.KeyCode.D then moveKeys.D=true end
+            if input.KeyCode==Enum.KeyCode.Space then jumpHold=true end
+        end)
+
+        UserInputService.InputEnded:Connect(function(input,gpe)
+            if input.KeyCode==Enum.KeyCode.W then moveKeys.W=false end
+            if input.KeyCode==Enum.KeyCode.A then moveKeys.A=false end
+            if input.KeyCode==Enum.KeyCode.S then moveKeys.S=false end
+            if input.KeyCode==Enum.KeyCode.D then moveKeys.D=false end
+            if input.KeyCode==Enum.KeyCode.Space then jumpHold=false end
+        end)
+
+        -- Movement
+        RunService.RenderStepped:Connect(function(dt)
+            if not root or not pvpMovementEnabled then return end
+            currentYaw += ROTATION_SPEED * dt
+
+            local camCFrame = Workspace.CurrentCamera.CFrame
+            local camLook = Vector3.new(camCFrame.LookVector.X,0,camCFrame.LookVector.Z)
+            local camRight = Vector3.new(camCFrame.RightVector.X,0,camCFrame.RightVector.Z)
+            local direction = Vector3.new(0,0,0)
+            if moveKeys.W then direction += camLook end
+            if moveKeys.S then direction -= camLook end
+            if moveKeys.A then direction -= camRight end
+            if moveKeys.D then direction += camRight end
+            if direction.Magnitude > 0 then direction = direction.Unit end
+
+            local deltaPos = direction * SLIDE_MAGNITUDE * dt
+            if jumpHold then deltaPos += Vector3.new(0, JUMP_HEIGHT * dt, 0) end
+            root.CFrame = CFrame.new(root.Position + deltaPos) * CFrame.Angles(0, math.rad(currentYaw), 0)
+        end)
+
+        -- 滑動開關
+        createOptionRow(contentFrame, y, "免控:", function(row)
+            local switchBg = Instance.new("Frame")
+            switchBg.Size = UDim2.new(0,60,0.5,0)
+            switchBg.Position = UDim2.new(0,150,0.25,0)
+            switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+            switchBg.BorderSizePixel = 0
+            switchBg.Parent = row
+            local switchCorner = Instance.new("UICorner")
+            switchCorner.CornerRadius = UDim.new(0,20)
+            switchCorner.Parent = switchBg
+
+            local knob = Instance.new("Frame")
+            knob.Size = UDim2.new(0,28,1,0)
+            knob.Position = UDim2.new(0,0,0,0)
+            knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+            knob.BorderSizePixel = 0
+            knob.Parent = switchBg
+            local knobCorner = Instance.new("UICorner")
+            knobCorner.CornerRadius = UDim.new(0,20)
+            knobCorner.Parent = knob
+
+            local toggled = false
+            local function toggleSwitch()
+                toggled = not toggled
+                pvpMovementEnabled = toggled
+                if toggled then
+                    knob:TweenPosition(UDim2.new(1, -28, 0, 0), "Out", "Quad", 0.2, true)
+                    switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
+                else
+                    knob:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Quad", 0.2, true)
+                    switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+                end
+            end
+            switchBg.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then toggleSwitch() end
+            end)
         end)
     end
 end
