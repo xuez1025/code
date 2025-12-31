@@ -1,0 +1,181 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ================= UI =================
+local screenGui = Instance.new("ScreenGui", playerGui)
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 280, 0, 150)
+frame.Position = UDim2.new(0.5, -140, 0.5, 25)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.ClipsDescendants = true
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 15)
+
+-- 標題
+local titleLabel = Instance.new("TextLabel", frame)
+titleLabel.Size = UDim2.new(1, -50, 0, 30)
+titleLabel.Position = UDim2.new(0, 10, 0, 10)
+titleLabel.Text = "Xu-Auto Pull NPC"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.Active = true
+
+-- X 按鈕
+local closeButton = Instance.new("TextButton", frame)
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -40, 0, 10)
+closeButton.Text = "X"
+closeButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+closeButton.TextColor3 = Color3.fromRGB(255,255,255)
+closeButton.TextScaled = true
+closeButton.Font = Enum.Font.SourceSansBold
+Instance.new("UICorner", closeButton).CornerRadius = UDim.new(0, 8)
+
+-- 自動吸附按鈕
+local autoPullButton = Instance.new("TextButton", frame)
+autoPullButton.Size = UDim2.new(0, 180, 0, 40)
+autoPullButton.Position = UDim2.new(0.5, -90, 0, 50)
+autoPullButton.Text = "自動吸附: OFF"
+autoPullButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+autoPullButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoPullButton.TextScaled = true
+autoPullButton.Font = Enum.Font.SourceSansBold
+Instance.new("UICorner", autoPullButton).CornerRadius = UDim.new(0, 8)
+
+-- 範圍滑桿
+local rangeLabel = Instance.new("TextLabel", frame)
+rangeLabel.Size = UDim2.new(0, 240, 0, 25)
+rangeLabel.Position = UDim2.new(0.5, -120, 0, 100)
+rangeLabel.Text = "範圍: 100 m"
+rangeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+rangeLabel.BackgroundTransparency = 1
+rangeLabel.TextScaled = true
+rangeLabel.Font = Enum.Font.SourceSans
+
+local sliderRange = Instance.new("Frame", frame)
+sliderRange.Size = UDim2.new(0, 240, 0, 20)
+sliderRange.Position = UDim2.new(0.5, -120, 0, 130)
+sliderRange.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+Instance.new("UICorner", sliderRange).CornerRadius = UDim.new(0, 10)
+
+local handleRange = Instance.new("Frame", sliderRange)
+handleRange.Size = UDim2.new(0, 20, 1, 0)
+handleRange.Position = UDim2.new(100/400, -10, 0, 0) -- 初始 100m 對應位置
+handleRange.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+Instance.new("UICorner", handleRange).CornerRadius = UDim.new(0, 10)
+
+-- ================= 狀態變數 =================
+local AUTO_PULL_ENABLED = false
+local autoPullConnection
+local rangeValue = 100 -- 初始範圍 100
+local draggingSlider = false
+
+-- ================= 功能 =================
+local function stopAutoPull()
+    if autoPullConnection then
+        autoPullConnection:Disconnect()
+        autoPullConnection = nil
+    end
+    AUTO_PULL_ENABLED = false
+    autoPullButton.Text = "自動吸附: OFF"
+    autoPullButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+end
+
+local function toggleAutoPull()
+    AUTO_PULL_ENABLED = not AUTO_PULL_ENABLED
+    if AUTO_PULL_ENABLED then
+        autoPullButton.Text = "自動吸附: ON"
+        autoPullButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        if not autoPullConnection then
+            autoPullConnection = RunService.Heartbeat:Connect(function()
+                local character = player.Character or player.CharacterAdded:Wait()
+                local hrp = character:WaitForChild("HumanoidRootPart")
+                local enemiesFolder = workspace:FindFirstChild("Enemies")
+                if enemiesFolder then
+                    for _, npc in pairs(enemiesFolder:GetChildren()) do
+                        if npc:FindFirstChild("Humanoid") and npc.Humanoid.Health > 0 then
+                            local npcPos = npc:FindFirstChild("Head") and npc.Head.Position or npc.HumanoidRootPart.Position
+                            local dist = (npcPos - hrp.Position).Magnitude
+                            if dist <= rangeValue then
+                                -- 將 NPC 慢慢拉到玩家正下方，往下 25 單位，速度 0.5
+                                local hrpPos = hrp.Position
+                                local targetPos = hrpPos - Vector3.new(0, hrp.Size.Y/2 + 25, 0)
+                                npc:SetPrimaryPartCFrame(CFrame.new(npc.PrimaryPart.Position:Lerp(targetPos, 0.5)))
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    else
+        stopAutoPull()
+    end
+end
+
+autoPullButton.MouseButton1Click:Connect(toggleAutoPull)
+
+-- ================= 滑桿控制 =================
+local function updateSlider(slider, handle, maxValue, label)
+    local dragging = false
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            draggingSlider = true
+        end
+    end)
+    handle.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+            draggingSlider = false
+        end
+    end)
+    local function update(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mouseX = input.Position.X
+            local basePos = slider.AbsolutePosition.X
+            local baseSize = slider.AbsoluteSize.X
+            local relativePos = math.clamp(mouseX - basePos, 0, baseSize)
+            handle.Position = UDim2.new(0, relativePos - handle.AbsoluteSize.X/2, 0, 0)
+            rangeValue = math.floor((relativePos / baseSize) * maxValue)
+            label.Text = "範圍: "..rangeValue.." m"
+        end
+    end
+    handle.InputChanged:Connect(update)
+    slider.InputChanged:Connect(update)
+end
+
+updateSlider(sliderRange, handleRange, 400, rangeLabel)
+
+-- ================= UI 拖動 =================
+local draggingUI = false
+local dragOffset = Vector2.new(0,0)
+titleLabel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and not draggingSlider then
+        draggingUI = true
+        local mousePos = UserInputService:GetMouseLocation()
+        dragOffset = Vector2.new(mousePos.X - frame.AbsolutePosition.X, mousePos.Y - frame.AbsolutePosition.Y)
+    end
+end)
+titleLabel.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingUI = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if draggingUI and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local mousePos = UserInputService:GetMouseLocation()
+        frame.Position = UDim2.new(0, mousePos.X - dragOffset.X, 0, mousePos.Y - dragOffset.Y)
+    end
+end)
+
+-- ================= 關閉 UI =================
+closeButton.MouseButton1Click:Connect(function()
+    stopAutoPull()
+    screenGui:Destroy()
+end)
