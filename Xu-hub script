@@ -157,7 +157,7 @@ for i=1,10 do
     if i == 1 then
         btn.Text = "PVP"
     elseif i == 2 then
-        btn.Text = "server"
+        btn.Text = "NPC" 
     elseif i == 3 then
         btn.Text = "設定"
     elseif i == 4 then
