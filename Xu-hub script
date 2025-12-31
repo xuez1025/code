@@ -148,13 +148,23 @@ minimizeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ===== 側欄按鈕 (PVP + XXX2~XXX10) =====
+-- ===== 側欄按鈕 (PVP + server + 設定 + status + XXX5~XXX10) =====
 local buttons = {}
 for i=1,10 do
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1,-20,0,50)
     btn.Position = UDim2.new(0,10,0,10 + (i-1)*60)
-    btn.Text = (i==1) and "PVP" or "XXX"..i
+    if i == 1 then
+        btn.Text = "PVP"
+    elseif i == 2 then
+        btn.Text = "server"
+    elseif i == 3 then
+        btn.Text = "設定"
+    elseif i == 4 then
+        btn.Text = "status"
+    else
+        btn.Text = "XXX"..i
+    end
     btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.BorderSizePixel = 0
@@ -201,7 +211,7 @@ local function createOptionRow(parent, yPos, labelText, contentFunc)
     return rowFrame
 end
 
--- ===== 顯示右側內容 =====
+-- ===== PVP 右側內容 =====
 local function showContent(index)
     contentFrame:ClearAllChildren()
     for i,b in ipairs(buttons) do
@@ -210,7 +220,7 @@ local function showContent(index)
 
     if index == 1 then -- PVP
         local y = 10
-        -- 自動攻擊滑動開關
+        -- 自動攻擊開關
         createOptionRow(contentFrame, y, "自動攻擊:", function(row)
             local switchBg = Instance.new("Frame")
             switchBg.Size = UDim2.new(0,60,0.5,0)
@@ -224,7 +234,7 @@ local function showContent(index)
 
             local knob = Instance.new("Frame")
             knob.Size = UDim2.new(0,28,1,0)
-            knob.Position = Settings.AutoClick and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
+            knob.Position = Settings.AutoClick and UDim2.new(1, -28, 0, 0) or UDim2.new(0,0,0,0)
             knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
             knob.BorderSizePixel = 0
             knob.Parent = switchBg
@@ -237,10 +247,10 @@ local function showContent(index)
                 toggled = not toggled
                 Settings.AutoClick = toggled
                 if toggled then
-                    knob:TweenPosition(UDim2.new(1, -28, 0, 0), "Out", "Quad", 0.2, true)
+                    knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
                     switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
                 else
-                    knob:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Quad", 0.2, true)
+                    knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
                     switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
                 end
             end
@@ -248,8 +258,8 @@ local function showContent(index)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then toggleSwitch() end
             end)
         end)
-
         y = y + 60
+
         -- 攻擊距離滑條
         createOptionRow(contentFrame, y, "攻擊距離:", function(row)
             local inputBox = Instance.new("TextBox")
@@ -315,9 +325,9 @@ local function showContent(index)
                 end
             end)
         end)
-
         y = y + 60
-        -- ===== PVP WASD 自動旋轉滑動開關 =====
+
+        -- WASD 自動旋轉 + 跳躍
         local pvpMovementEnabled = false
         local ROTATION_SPEED = 2000
         local SLIDE_MAGNITUDE = 350
@@ -375,7 +385,7 @@ local function showContent(index)
             root.CFrame = CFrame.new(root.Position + deltaPos) * CFrame.Angles(0, math.rad(currentYaw), 0)
         end)
 
-        -- 滑動開關
+        -- 免控滑動開關
         createOptionRow(contentFrame, y, "免控:", function(row)
             local switchBg = Instance.new("Frame")
             switchBg.Size = UDim2.new(0,60,0.5,0)
@@ -397,15 +407,15 @@ local function showContent(index)
             knobCorner.CornerRadius = UDim.new(0,20)
             knobCorner.Parent = knob
 
-            local toggled = false
+            local toggled = pvpMovementEnabled
             local function toggleSwitch()
                 toggled = not toggled
                 pvpMovementEnabled = toggled
                 if toggled then
-                    knob:TweenPosition(UDim2.new(1, -28, 0, 0), "Out", "Quad", 0.2, true)
+                    knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
                     switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
                 else
-                    knob:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Quad", 0.2, true)
+                    knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
                     switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
                 end
             end
