@@ -100,13 +100,14 @@ local sideUICorner = Instance.new("UICorner")
 sideUICorner.CornerRadius = UDim.new(0,10)
 sideUICorner.Parent = sideBar
 
--- 右側內容區
+-- 右側內容區（空，保留滾動功能）
 local contentFrame = Instance.new("ScrollingFrame")
 contentFrame.Size = UDim2.new(1,-180,1,-50)
 contentFrame.Position = UDim2.new(0,180,0,50)
 contentFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 contentFrame.BackgroundTransparency = 0.8
 contentFrame.BorderSizePixel = 0
+contentFrame.ScrollBarThickness = 6
 contentFrame.Parent = mainFrame
 local contentCorner = Instance.new("UICorner")
 contentCorner.CornerRadius = UDim.new(0,10)
@@ -129,15 +130,22 @@ minimizeBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ===== 側欄按鈕 =====
+local buttonNames = {
+    "通用", "設定", "Server", "Status", "PVP", 
+    "Farm", "想不到", "我太帥了", "天生可能就很帥了", "好像是"
+}
+
 local buttons = {}
 for i=1,10 do
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1,-20,0,50)
     btn.Position = UDim2.new(0,10,0,10 + (i-1)*60)
-    btn.Text = "XXX"..i
+    btn.Text = buttonNames[i]
     btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.BorderSizePixel = 0
+    btn.TextScaled = true          -- 文字自動縮放
+    btn.Font = Enum.Font.SourceSansBold -- 粗體顯示
     btn.Parent = sideBar
 
     local btnCorner = Instance.new("UICorner")
@@ -154,9 +162,8 @@ for i=1,10 do
     buttons[i] = {Button = btn, Indicator = indicator}
 end
 
--- 顯示 / 隱藏右側內容 (現在沒有內容)
+-- 點選按鈕只顯示選中指示器，不新增右側內容
 local function showContent(index)
-    contentFrame:ClearAllChildren()
     for i,b in ipairs(buttons) do
         b.Indicator.Visible = (i==index)
     end
