@@ -1,0 +1,203 @@
+-- ===== 基本服務 =====
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+-- ===== Xu-hub UI =====
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = PlayerGui
+screenGui.Name = "XuHubGui"
+
+-- 小長方形開關
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0,120,0,50)
+toggleBtn.Position = UDim2.new(0.5,-60,0,0)
+toggleBtn.Text = "Xu-hub"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toggleBtn.BorderSizePixel = 0
+toggleBtn.TextScaled = true
+toggleBtn.Parent = screenGui
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0,10)
+toggleCorner.Parent = toggleBtn
+
+-- 主框架
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0,900,0,650)
+mainFrame.Position = UDim2.new(0.5,-450,0.5,-325)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+mainFrame.BackgroundTransparency = 0.3
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0,10)
+UICorner.Parent = mainFrame
+
+-- 標題列
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1,0,0,50)
+titleBar.BackgroundColor3 = Color3.fromRGB(20,20,20)
+titleBar.BackgroundTransparency = 0.3
+titleBar.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1,-20,1,0)
+titleLabel.Position = UDim2.new(0,10,0,0)
+titleLabel.Text = "Xu-hub"
+titleLabel.TextColor3 = Color3.fromRGB(255,255,255)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextSize = 32
+titleLabel.Parent = titleBar
+
+-- 關閉按鈕
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0,30,0,30)
+closeBtn.Position = UDim2.new(1,-40,0,10)
+closeBtn.Text = "X"
+closeBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+closeBtn.BackgroundTransparency = 0.2
+closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+closeBtn.Parent = titleBar
+closeBtn.MouseButton1Click:Connect(function()
+    mainFrame:Destroy()
+    toggleBtn:Destroy()
+end)
+
+-- 縮小化按鈕 (-)
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0,30,0,30)
+minimizeBtn.Position = UDim2.new(1,-80,0,10)
+minimizeBtn.Text = "-"
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+minimizeBtn.BackgroundTransparency = 0.2
+minimizeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+minimizeBtn.Parent = titleBar
+
+local isMinimized = false
+local originalSize = mainFrame.Size
+local originalPosition = mainFrame.Position
+
+-- 左側側欄
+local sideBar = Instance.new("ScrollingFrame")
+sideBar.Size = UDim2.new(0,180,1,-50)
+sideBar.Position = UDim2.new(0,0,0,50)
+sideBar.BackgroundColor3 = Color3.fromRGB(50,50,50)
+sideBar.BackgroundTransparency = 0.4
+sideBar.BorderSizePixel = 0
+sideBar.ScrollBarThickness = 6
+sideBar.Parent = mainFrame
+local sideUICorner = Instance.new("UICorner")
+sideUICorner.CornerRadius = UDim.new(0,10)
+sideUICorner.Parent = sideBar
+
+-- 右側內容區
+local contentFrame = Instance.new("ScrollingFrame")
+contentFrame.Size = UDim2.new(1,-180,1,-50)
+contentFrame.Position = UDim2.new(0,180,0,50)
+contentFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+contentFrame.BackgroundTransparency = 0.8
+contentFrame.BorderSizePixel = 0
+contentFrame.Parent = mainFrame
+local contentCorner = Instance.new("UICorner")
+contentCorner.CornerRadius = UDim.new(0,10)
+contentCorner.Parent = contentFrame
+
+-- 縮小功能
+minimizeBtn.MouseButton1Click:Connect(function()
+    if not isMinimized then
+        mainFrame.Size = UDim2.new(0, originalSize.X.Offset, 0, titleBar.Size.Y.Offset)
+        isMinimized = true
+        contentFrame.Visible = false
+        sideBar.Visible = false
+    else
+        mainFrame.Size = originalSize
+        mainFrame.Position = originalPosition
+        isMinimized = false
+        contentFrame.Visible = true
+        sideBar.Visible = true
+    end
+end)
+
+-- ===== 側欄按鈕 =====
+local buttons = {}
+for i=1,10 do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,-20,0,50)
+    btn.Position = UDim2.new(0,10,0,10 + (i-1)*60)
+    btn.Text = "XXX"..i
+    btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.BorderSizePixel = 0
+    btn.Parent = sideBar
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0,10)
+    btnCorner.Parent = btn
+
+    local indicator = Instance.new("Frame")
+    indicator.Size = UDim2.new(0,4,1,0)
+    indicator.Position = UDim2.new(0,0,0,0)
+    indicator.BackgroundColor3 = Color3.fromRGB(0,120,255)
+    indicator.Visible = false
+    indicator.Parent = btn
+
+    buttons[i] = {Button = btn, Indicator = indicator}
+end
+
+-- 顯示 / 隱藏右側內容 (現在沒有內容)
+local function showContent(index)
+    contentFrame:ClearAllChildren()
+    for i,b in ipairs(buttons) do
+        b.Indicator.Visible = (i==index)
+    end
+end
+
+for i,b in ipairs(buttons) do
+    b.Button.MouseButton1Click:Connect(function()
+        showContent(i)
+    end)
+end
+
+-- 顯示 / 隱藏主框架
+toggleBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- ===== 可拖動功能 =====
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+titleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        UserInputService.InputChanged:Connect(function(moveInput)
+            if dragging and moveInput.UserInputType == Enum.UserInputType.MouseMovement then
+                local delta = moveInput.Position - dragStart
+                mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end)
+    end
+end)
