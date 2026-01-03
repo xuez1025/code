@@ -229,15 +229,232 @@ local function contentFunction(index)
         label.Parent = contentFrame
 
     elseif index == 5 then
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1,0,0,50)
-        label.Position = UDim2.new(0,0,0,0)
-        label.Text = " PVP "
-        label.TextColor3 = Color3.fromRGB(255,255,255)
-        label.BackgroundTransparency = 1
-        label.Font = Enum.Font.SourceSansBold
-        label.TextSize =40
-        label.Parent = contentFrame
+-- ===== ESP 左右滑動開關 =====
+local ESP_ENABLED = false
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+-- 判斷顏色
+local function getESPColor(player)
+    if LocalPlayer.Team and player.Team then
+        if LocalPlayer.Team == player.Team then
+            return Color3.fromRGB(0,255,0)
+        else
+            return Color3.fromRGB(255,0,0)
+        end
+    end
+    return Color3.fromRGB(255,255,255)
+end
+
+-- 建立 / 移除 ESP
+local function createESP(player)
+    if not player.Character or player.Character:FindFirstChild("ESP_Highlight") then return end
+    local h = Instance.new("Highlight")
+    h.Name = "ESP_Highlight"
+    h.FillColor = getESPColor(player)
+    h.OutlineColor = Color3.fromRGB(255,255,255)
+    h.FillTransparency = 0.2
+    h.OutlineTransparency = 0
+    h.Adornee = player.Character
+    h.Parent = player.Character
+
+    local head = player.Character:FindFirstChild("Head")
+    if head then
+        local bill = Instance.new("BillboardGui")
+        bill.Name = "ESP_Billboard"
+        bill.Size = UDim2.fromOffset(180,50)
+        bill.StudsOffset = Vector3.new(0,3,0)
+        bill.AlwaysOnTop = true
+        bill.Parent = head
+
+        local text = Instance.new("TextLabel")
+        text.Name = "Info"
+        text.Size = UDim2.fromOffset(180,50)
+        text.Position = UDim2.fromOffset(0,0)
+        text.BackgroundTransparency = 1
+        text.TextColor3 = getESPColor(player)
+        text.TextStrokeTransparency = 0
+        text.TextTransparency = 0.2
+        text.Font = Enum.Font.SourceSansBold
+        text.TextSize = 24
+        text.Text = player.Name
+        text.Parent = bill
+    end
+end
+
+local function removeESP(player)
+    if player.Character then
+        local h = player.Character:FindFirstChild("ESP_Highlight")
+        if h then h:Destroy() end
+        local head = player.Character:FindFirstChild("Head")
+        if head then
+            local bill = head:FindFirstChild("ESP_Billboard")
+            if bill then bill:Destroy() end
+        end
+    end
+end
+
+local function refreshESP()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            if ESP_ENABLED then
+                createESP(p)
+            else
+                removeESP(p)
+            end
+        end
+    end
+end
+
+-- ===== PVP 分頁內 UI =====
+local container = Instance.new("Frame")
+container.Size = UDim2.new(1, -20, 0, 60)
+container.Position = UDim2.fromOffset(10, 10)
+container.BackgroundColor3 = Color3.fromRGB(70,70,70) -- 整行底色
+container.Parent = contentFrame
+local containerCorner = Instance.new("UICorner")
+containerCorner.CornerRadius = UDim.new(0,10)
+containerCorner.Parent = container
+
+-- 左側文字
+local label = Instance.new("TextLabel")
+label.Text = "ESP"
+label.Font = Enum.Font.SourceSansBold
+label.TextSize = 40
+label.TextColor3 = Color3.fromRGB(255,255,255)
+label.BackgroundTransparency = 1
+label.Size = UDim2.new(0,150,1,0)
+label.Position = UDim2.new(0,10,0,0)
+label.TextXAlignment = Enum.TextXAlignment.Left
+label.TextYAlignment = Enum.TextYAlignment.Center
+label.Parent = container
+
+-- 右側滑動開關容器
+local switchContainer = Instance.new("Frame")
+switchContainer.Size = UDim2.new(0, 60, 0, 30)
+switchContainer.Position = UDim2.new(1, -70, 0.5, 0)
+switchContainer.AnchorPoint = Vector2.new(1,0.5)
+switchContainer.BackgroundColor3 = Color3.fromRGB(100,100,100)
+switchContainer.Parent = container
+local switchCorner = Instance.new("UICorner")
+switchCorner.CornerRadius = UDim.new(0,15)
+switchCorner.Parent = switchContainer
+
+-- 滑塊
+local knob = Instance.new("Frame")
+knob.Size = UDim2.new(0,28,1,0)
+knob.Position = UDim2.new(0,1,0,0)
+knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+knob.Parent = switchContainer
+local knobCorner = Instance.new("UICorner")
+knobCorner.CornerRadius = UDim.new(0,14)
+knobCorner.Parent = knob
+
+-- 滑動邏輯
+local dragging = false
+local dragStart = nil
+local knobStart = nil
+
+local function updateSwitch(state)
+    ESP_ENABLED = state
+    refreshESP()
+    if ESP_ENABLED then
+        knob.Position = UDim2.new(1, -knob.Size.X.Offset - 1, 0, 0)
+        switchContainer.BackgroundColor3 = Color3.fromRGB(0,170,0)
+    else
+        knob.Position = UDim2.new(0,1,0,0)
+        switchContainer.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    end
+end
+
+-- 點擊切換
+switchContainer.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        updateSwitch(not ESP_ENABLED)
+    elseif input.UserInputType == Enum.UserInputType.Touch then
+        updateSwitch(not ESP_ENABLED)
+    end
+end)
+
+-- 拖動滑塊
+knob.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        knobStart = knob.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+                -- 判斷最終位置
+                if knob.Position.X.Scale > 0.5 then
+                    updateSwitch(true)
+                else
+                    updateSwitch(false)
+                end
+            end
+        end)
+    end
+end)
+
+knob.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local delta = input.Position.X - dragStart.X
+        local containerWidth = switchContainer.AbsoluteSize.X - knob.AbsoluteSize.X - 2
+        local newX = math.clamp(knobStart.X.Offset + delta,0,containerWidth)
+        knob.Position = UDim2.new(0,newX,0,0)
+    end
+end)
+
+-- ===== 玩家事件 =====
+local function setupPlayerESP(p)
+    p.CharacterAdded:Connect(function()
+        task.wait(0.2)
+        if ESP_ENABLED then createESP(p) end
+    end)
+    if ESP_ENABLED and p.Character then
+        createESP(p)
+    end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer then
+        setupPlayerESP(p)
+    end
+end
+
+Players.PlayerAdded:Connect(setupPlayerESP)
+Players.PlayerRemoving:Connect(removeESP)
+
+-- ===== RenderStepped 更新 =====
+RunService.RenderStepped:Connect(function()
+    if ESP_ENABLED and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+                local bill = p.Character.Head:FindFirstChild("ESP_Billboard")
+                local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+                if bill and hrp then
+                    local info = bill:FindFirstChild("Info")
+                    if info then
+                        info.Text = p.Name.." ["..math.floor((myPos-hrp.Position).Magnitude).."m]"
+                        info.TextColor3 = getESPColor(p)
+                    end
+                    local highlight = p.Character:FindFirstChild("ESP_Highlight")
+                    if highlight then
+                        highlight.FillColor = getESPColor(p)
+                    end
+                end
+            end
+        end
+    end
+end)
 
     elseif index == 6 then
         local label = Instance.new("TextLabel")
