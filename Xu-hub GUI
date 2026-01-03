@@ -9,26 +9,6 @@ local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
--- ===== FastAttack 核心 =====
-local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
-local RegisterHit = Net:WaitForChild("RE/RegisterHit")
-local EnemiesFolder = workspace:WaitForChild("Enemies")
-local CharactersFolder = workspace:WaitForChild("Characters")
-
-_G.FastAttack = true
-local Settings = {
-    AutoClick = true,
-    Distance = 50,
-    AttackInterval = 0.01,
-    MaxTargets = 20
-}
-
-local function IsAlive(char)
-    local hum = char:FindFirstChild("Humanoid")
-    return hum and hum.Health > 0
-end
-
 -- ===== Xu-hub UI =====
 local screenGui = Instance.new("ScreenGui")
 screenGui.Parent = PlayerGui
