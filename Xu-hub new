@@ -217,16 +217,16 @@ local function contentFunction(index)
         MaxTargets = 20
     }
 
-    local startY = 10      -- 與 Xu-hub 標題間隔
+    local startY = 10      -- 與標題間隔
     local lineHeight = 60  -- 功能行高度
     local spacing = 15     -- 行間距
 
-    -- 創建功能行 (圓角 + 底色)
+    -- 創建功能行
     local function createLine(parent, yPos, height)
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1,-20,0,height)
         frame.Position = UDim2.new(0,10,0,yPos)
-        frame.BackgroundColor3 = Color3.fromRGB(80,80,80)  -- 淺色底
+        frame.BackgroundColor3 = Color3.fromRGB(80,80,80)
         frame.BorderSizePixel = 0
 
         local corner = Instance.new("UICorner")
@@ -237,7 +237,7 @@ local function contentFunction(index)
         return frame
     end
 
-    -- ===== 自動攻擊一行 (Switch) =====
+    -- ===== 自動攻擊開關 =====
     local autoFrame = createLine(contentFrame, startY, lineHeight)
 
     local labelAuto = Instance.new("TextLabel")
@@ -251,11 +251,10 @@ local function contentFunction(index)
     labelAuto.TextXAlignment = Enum.TextXAlignment.Left
     labelAuto.Parent = autoFrame
 
-    -- Switch 背景
     local switchBG = Instance.new("Frame")
     switchBG.Size = UDim2.new(0,60,0,30)
     switchBG.Position = UDim2.new(1,-80,0,(lineHeight-30)/2)
-    switchBG.BackgroundColor3 = Color3.fromRGB(0,200,0) -- 初始 ON 綠
+    switchBG.BackgroundColor3 = Color3.fromRGB(0,200,0)
     switchBG.BorderSizePixel = 0
     switchBG.Parent = autoFrame
 
@@ -263,10 +262,9 @@ local function contentFunction(index)
     switchCorner.CornerRadius = UDim.new(0,15)
     switchCorner.Parent = switchBG
 
-    -- Switch 滑塊
     local knob = Instance.new("Frame")
     knob.Size = UDim2.new(0,28,0,28)
-    knob.Position = UDim2.new(1, -29, 0,1)  -- 初始在右側
+    knob.Position = UDim2.new(1,-29,0,1)
     knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
     knob.BorderSizePixel = 0
     knob.Parent = switchBG
@@ -275,14 +273,13 @@ local function contentFunction(index)
     knobCorner.CornerRadius = UDim.new(0,14)
     knobCorner.Parent = knob
 
-    -- 切換函數
     local function toggleSwitch()
         Settings.AutoClick = not Settings.AutoClick
         if Settings.AutoClick then
-            knob:TweenPosition(UDim2.new(1, -29, 0,1), "Out", "Quad", 0.2, true)
+            knob:TweenPosition(UDim2.new(1,-29,0,1),"Out","Quad",0.2,true)
             switchBG.BackgroundColor3 = Color3.fromRGB(0,200,0)
         else
-            knob:TweenPosition(UDim2.new(0,1,0,1), "Out", "Quad", 0.2, true)
+            knob:TweenPosition(UDim2.new(0,1,0,1),"Out","Quad",0.2,true)
             switchBG.BackgroundColor3 = Color3.fromRGB(100,100,100)
         end
     end
@@ -295,77 +292,41 @@ local function contentFunction(index)
 
     startY = startY + lineHeight + spacing
 
-    -- ===== 攻擊距離一行 (文字 + 輸入框 + 滑桿 + Knob + 最大值) =====
+    -- ===== 攻擊距離滑桿 + 最大值顯示在文字旁 =====
     local distFrame = createLine(contentFrame, startY, lineHeight)
 
-    -- 左側文字
+    local MAX_DISTANCE = 1000
+    local sliderWidth = 200
+
+    -- 距離文字 (包含最大值)
     local distLabel = Instance.new("TextLabel")
-    distLabel.Size = UDim2.new(0,120,1,0)
+    distLabel.Size = UDim2.new(0,150,1,0)  -- 足夠寬度
     distLabel.Position = UDim2.new(0,10,0,0)
     distLabel.BackgroundTransparency = 1
-    distLabel.TextColor3 = Color3.fromRGB(255,255,0)
+    distLabel.TextColor3 = Color3.fromRGB(255,255,255)
     distLabel.TextScaled = true
     distLabel.Font = Enum.Font.SourceSansBold
     distLabel.TextXAlignment = Enum.TextXAlignment.Left
-    distLabel.Text = "距離: "..Settings.Distance.." 米"
+    distLabel.Text = "攻擊距離: "..Settings.Distance.." 米 (max:"..MAX_DISTANCE.."m)"
     distLabel.Parent = distFrame
 
-    -- 輸入框
-    local inputBox = Instance.new("TextBox")
-    inputBox.Size = UDim2.new(0,60,0,25)
-    inputBox.Position = UDim2.new(0,140,0,(lineHeight-25)/2)
-    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
-    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
-    inputBox.TextScaled = true
-    inputBox.Font = Enum.Font.SourceSansBold
-    inputBox.ClearTextOnFocus = false
-    inputBox.Text = tostring(Settings.Distance)
-    inputBox.Parent = distFrame
-
-    -- 最大值提示
-    local maxLabel = Instance.new("TextLabel")
-    maxLabel.Size = UDim2.new(0,80,1,0)
-    maxLabel.Position = UDim2.new(0,210,0,0)
-    maxLabel.BackgroundTransparency = 1
-    maxLabel.TextColor3 = Color3.fromRGB(200,200,200)
-    maxLabel.TextScaled = true
-    maxLabel.Font = Enum.Font.SourceSans
-    maxLabel.TextXAlignment = Enum.TextXAlignment.Left
-    maxLabel.Text = "(max:1000m)"
-    maxLabel.Parent = distFrame
-
-    -- ===== 滑桿 (置中於右側) =====
-    local sliderMarginLeft = 300
-    local sliderMarginRight = 20
-    local sliderWidth = distFrame.AbsoluteSize.X - sliderMarginLeft - sliderMarginRight
-
+    -- 滑桿靠右
     local slider = Instance.new("Frame")
     slider.Size = UDim2.new(0, sliderWidth, 0, 20)
-    slider.Position = UDim2.new(0, sliderMarginLeft, 0, (lineHeight-20)/2)
+    slider.Position = UDim2.new(1, -sliderWidth - 20, 0, (lineHeight-20)/2)
     slider.BackgroundColor3 = Color3.fromRGB(50,50,50)
     slider.BorderSizePixel = 0
     slider.Parent = distFrame
 
-    -- 填充條
     local fill = Instance.new("Frame")
-    fill.Size = UDim2.new(Settings.Distance/1000,0,1,0)
-    fill.Position = UDim2.new(0,0,0,0)
+    fill.Size = UDim2.new(Settings.Distance/MAX_DISTANCE,0,1,0)
     fill.BackgroundColor3 = Color3.fromRGB(255,200,0)
     fill.BorderSizePixel = 0
     fill.Parent = slider
 
-    local fillGradient = Instance.new("UIGradient")
-    fillGradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255,230,150)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(255,150,0))
-    }
-    fillGradient.Rotation = 0
-    fillGradient.Parent = fill
-
-    -- 小圈圈 Knob
     local knobSlider = Instance.new("Frame")
     knobSlider.Size = UDim2.new(0,20,0,20)
-    knobSlider.Position = UDim2.new(Settings.Distance/1000, -10, 0,0)
+    knobSlider.Position = UDim2.new(Settings.Distance/MAX_DISTANCE,-10,0,0)
     knobSlider.BackgroundColor3 = Color3.fromRGB(255,255,255)
     knobSlider.BorderSizePixel = 0
     knobSlider.Parent = slider
@@ -376,8 +337,6 @@ local function contentFunction(index)
 
     -- 拖動邏輯
     local dragging = false
-    local MAX_DISTANCE = 1000
-
     slider.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
@@ -394,26 +353,9 @@ local function contentFunction(index)
             mouseX = math.clamp(mouseX,0,slider.AbsoluteSize.X)
             local distance = (mouseX/slider.AbsoluteSize.X) * MAX_DISTANCE
             Settings.Distance = distance
-            distLabel.Text = "距離: "..math.floor(distance).." 米"
-            inputBox.Text = tostring(math.floor(distance))
+            distLabel.Text = "距離: "..math.floor(distance).." 米 (max:"..MAX_DISTANCE.."m)"
             fill.Size = UDim2.new(mouseX/slider.AbsoluteSize.X,0,1,0)
-            knobSlider.Position = UDim2.new(mouseX/slider.AbsoluteSize.X, -10, 0, 0)
-        end
-    end)
-
-    inputBox.FocusLost:Connect(function(enterPressed)
-        if enterPressed then
-            local val = tonumber(inputBox.Text)
-            if val then
-                local distance = math.clamp(val,0,MAX_DISTANCE)
-                Settings.Distance = distance
-                inputBox.Text = tostring(math.floor(distance))
-                distLabel.Text = "距離: "..math.floor(distance).." 米"
-                fill.Size = UDim2.new(distance/MAX_DISTANCE,0,1,0)
-                knobSlider.Position = UDim2.new(distance/MAX_DISTANCE, -10, 0,0)
-            else
-                inputBox.Text = tostring(math.floor(Settings.Distance))
-            end
+            knobSlider.Position = UDim2.new(mouseX/slider.AbsoluteSize.X,-10,0,0)
         end
     end)
 
