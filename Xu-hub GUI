@@ -9,6 +9,26 @@ local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
+-- ===== FastAttack 核心 =====
+local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
+local RegisterHit = Net:WaitForChild("RE/RegisterHit")
+local EnemiesFolder = workspace:WaitForChild("Enemies")
+local CharactersFolder = workspace:WaitForChild("Characters")
+
+_G.FastAttack = true
+local Settings = {
+    AutoClick = true,
+    Distance = 50,
+    AttackInterval = 0.01,
+    MaxTargets = 20
+}
+
+local function IsAlive(char)
+    local hum = char:FindFirstChild("Humanoid")
+    return hum and hum.Health > 0
+end
+
 -- ===== Xu-hub UI =====
 local screenGui = Instance.new("ScreenGui")
 screenGui.Parent = PlayerGui
@@ -100,7 +120,7 @@ local sideUICorner = Instance.new("UICorner")
 sideUICorner.CornerRadius = UDim.new(0,10)
 sideUICorner.Parent = sideBar
 
--- 右側內容區（空，保留滾動功能）
+-- 右側內容區
 local contentFrame = Instance.new("ScrollingFrame")
 contentFrame.Size = UDim2.new(1,-180,1,-50)
 contentFrame.Position = UDim2.new(0,180,0,50)
@@ -132,7 +152,7 @@ end)
 -- ===== 側欄按鈕 =====
 local buttonNames = {
     "通用", "設定", "Server", "Status", "PVP", 
-    "Farm", "想不到", "我太帥了", "天生可能就很帥了", "好像是"
+    "Farm", "自動", "我太帥了", "天生可能就很帥了", "好像是"
 }
 
 local buttons = {}
@@ -144,8 +164,8 @@ for i=1,10 do
     btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.BorderSizePixel = 0
-    btn.TextScaled = true          -- 文字自動縮放
-    btn.Font = Enum.Font.SourceSansBold -- 粗體顯示
+    btn.TextScaled = true
+    btn.Font = Enum.Font.SourceSansBold
     btn.Parent = sideBar
 
     local btnCorner = Instance.new("UICorner")
@@ -162,14 +182,135 @@ for i=1,10 do
     buttons[i] = {Button = btn, Indicator = indicator}
 end
 
--- 點選按鈕只顯示選中指示器，不新增右側內容
-local function showContent(index)
-    for i,b in ipairs(buttons) do
-        b.Indicator.Visible = (i==index)
+-- ===== 右側內容區功能函數 =====
+local function contentFunction(index)
+    if index == 1 then
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1,0,0,50)
+        label.Position = UDim2.new(0,0,0,0)
+        label.Text = "通用"
+        label.TextColor3 = Color3.fromRGB(255,255,255)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.SourceSansBold
+        label.TextSize =40
+        label.Parent = contentFrame
+
+    elseif index == 2 then
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1,0,0,50)
+        label.Position = UDim2.new(0,0,0,0)
+        label.Text = "設定"
+        label.TextColor3 = Color3.fromRGB(255,255,255)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.SourceSansBold
+        label.TextSize = 40
+        label.Parent = contentFrame
+        
+    elseif index == 3 then
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1,0,0,50)
+        label.Position = UDim2.new(0,0,0,0)
+        label.Text = "server"
+        label.TextColor3 = Color3.fromRGB(255,255,255)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.SourceSansBold
+        label.TextSize = 40
+        label.Parent = contentFrame
+
+    elseif index == 4 then
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1,0,0,50)
+        label.Position = UDim2.new(0,0,0,0)
+        label.Text = "狀態"
+        label.TextColor3 = Color3.fromRGB(255,255,255)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.SourceSansBold
+        label.TextSize = 40
+        label.Parent = contentFrame
+
+    elseif index == 5 then
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1,0,0,50)
+        label.Position = UDim2.new(0,0,0,0)
+        label.Text = " PVP "
+        label.TextColor3 = Color3.fromRGB(255,255,255)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.SourceSansBold
+        label.TextSize =40
+        label.Parent = contentFrame
+
+    elseif index == 6 then
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1,0,0,50)
+        label.Position = UDim2.new(0,0,0,0)
+        label.Text = "Farm"
+        label.TextColor3 = Color3.fromRGB(255,255,255)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.SourceSansBold
+        label.TextSize = 40
+        label.Parent = contentFrame
+
+    elseif index == 7 then
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1,0,0,50)
+        label.Position = UDim2.new(0,0,0,0)
+        label.Text = "自動"
+        label.TextColor3 = Color3.fromRGB(255,255,255)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.SourceSansBold
+        label.TextSize = 80
+        label.Parent = contentFrame
+
+    elseif index == 8 then
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1,0,0,50)
+        label.Position = UDim2.new(0,0,0,0)
+        label.Text = "待開發"
+        label.TextColor3 = Color3.fromRGB(255,255,255)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.SourceSansBold
+        label.TextSize = 80
+        label.Parent = contentFrame
+
+    elseif index == 9 then
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1,0,0,50)
+        label.Position = UDim2.new(0,0,0,0)
+        label.Text = "待開發"
+        label.TextColor3 = Color3.fromRGB(255,255,255)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.SourceSansBold
+        label.TextSize = 80
+        label.Parent = contentFrame
+
+    elseif index == 10 then
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1,0,0,50)
+        label.Position = UDim2.new(0,0,0,0)
+        label.Text = "待開發"
+        label.TextColor3 = Color3.fromRGB(255,255,255)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.SourceSansBold
+        label.TextSize = 80
+        label.Parent = contentFrame
     end
 end
 
-for i,b in ipairs(buttons) do
+-- ===== 點擊側欄按鈕顯示內容（內容區完全空白） =====
+local function showContent(index)
+    -- 側欄指示條
+    for i, b in ipairs(buttons) do
+        b.Indicator.Visible = (i == index)
+    end
+
+    -- 清空右側內容區
+    contentFrame:ClearAllChildren()
+
+    -- 呼叫對應功能結構
+    contentFunction(index)
+end
+
+for i, b in ipairs(buttons) do
     b.Button.MouseButton1Click:Connect(function()
         showContent(i)
     end)
@@ -180,7 +321,7 @@ toggleBtn.MouseButton1Click:Connect(function()
     mainFrame.Visible = not mainFrame.Visible
 end)
 
--- ===== 可拖動功能（穩定版，可直接貼上）=====
+-- ===== 可拖動功能 =====
 local dragging = false
 local dragInput
 local dragStart
