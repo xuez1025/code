@@ -16,6 +16,7 @@ local Settings = {
     Distance = 50,
     AttackInterval = 0.01,
     MaxTargets = 20,
+    ESP_ENABLED = false,
     
 }
 
@@ -29,6 +30,81 @@ local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
 local RegisterHit = Net:WaitForChild("RE/RegisterHit")
 local EnemiesFolder = workspace:WaitForChild("Enemies")
 local CharactersFolder = workspace:WaitForChild("Characters")
+
+-- ===== ESP 核心 =====
+local function getESPColor(player)
+    local myTeam = player.Team
+    local playerTeam = player.Team
+
+    if myTeam and playerTeam then
+        if myTeam == playerTeam then
+            return Color3.fromRGB(0,255,0)
+        else
+            return Color3.fromRGB(255,0,0)
+        end
+    end
+    return Color3.fromRGB(255,255,255)
+end
+
+local function createESP(player)
+    if not player.Character then return end
+    if player.Character:FindFirstChild("ESP_Highlight") then return end
+
+    local color = getESPColor(player)
+
+    local h = Instance.new("Highlight")
+    h.Name = "ESP_Highlight"
+    h.FillColor = color
+    h.OutlineColor = Color3.fromRGB(255,255,255)
+    h.FillTransparency = 0.2
+    h.OutlineTransparency = 0
+    h.Adornee = player.Character
+    h.Parent = player.Character
+
+    local head = player.Character:FindFirstChild("Head")
+    if not head then return end
+
+    local bill = Instance.new("BillboardGui")
+    bill.Name = "ESP_Billboard"
+    bill.Size = UDim2.fromOffset(180,50)
+    bill.StudsOffset = Vector3.new(0,3,0)
+    bill.AlwaysOnTop = true
+    bill.Parent = head
+
+    local text = Instance.new("TextLabel", bill)
+    text.Size = UDim2.fromOffset(180,50)
+    text.Position = UDim2.fromOffset(0,0)
+    text.BackgroundTransparency = 1
+    text.TextColor3 = color
+    text.TextStrokeTransparency = 0
+    text.TextTransparency = 0.2
+    text.Font = Enum.Font.SourceSansBold
+    text.TextSize = 20
+    text.Name = "Info"
+end
+
+local function removeESP(player)
+    if not player.Character then return end
+    local h = player.Character:FindFirstChild("ESP_Highlight")
+    if h then h:Destroy() end
+    local head = player.Character:FindFirstChild("Head")
+    if head then
+        local bill = head:FindFirstChild("ESP_Billboard")
+        if bill then bill:Destroy() end
+    end
+end
+
+local function refreshESP()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player then
+            if ESP_ENABLED then
+                createESP(p)
+            else
+                removeESP(p)
+            end
+        end
+    end
+end
 
 -- ===== Xu-hub UI =====
 local screenGui = Instance.new("ScreenGui")
@@ -210,7 +286,7 @@ local function createOptionRow(parent, yPos, labelText, contentFunc)
     return rowFrame
 end
 
--- ===== PVP 右側內容 =====
+-- ===== 右側內容 =====
 local function showContent(index)
     contentFrame:ClearAllChildren()
     for i,b in ipairs(buttons) do
@@ -232,15 +308,13 @@ local function showContent(index)
     mainTitle.TextXAlignment = Enum.TextXAlignment.Left
     mainTitle.Parent = contentFrame
 
-    -- 彩虹顏色效果
+        -- 彩虹顏色效果
 local hue = 0
 RunService.RenderStepped:Connect(function(dt)
     hue = (hue + dt/2) % 1 -- 速度可調整，越小越慢
     mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
 end)
-
 	y = y + 40 -- 下一個選項的 y 位置
-
 
     elseif index == 2 then
         local y = 10
@@ -339,10 +413,10 @@ end)
 	y = y + 40 -- 下一個選項的 y 位置
 
         -- 自動攻擊開關
-        createOptionRow(contentFrame, y, "自動攻擊:", function(row)
+        createOptionRow(contentFrame, y, "自動攻擊", function(row)
             local switchBg = Instance.new("Frame")
             switchBg.Size = UDim2.new(0,60,0.5,0)
-            switchBg.Position = UDim2.new(0,150,0.25,0)
+            switchBg.Position = UDim2.new(1,-70,0.25,0)
             switchBg.BackgroundColor3 = Settings.AutoClick and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
             switchBg.BorderSizePixel = 0
             switchBg.Parent = row
