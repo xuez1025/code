@@ -9,25 +9,26 @@ local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
--- ===== FastAttack 核心 =====
-local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
-local RegisterHit = Net:WaitForChild("RE/RegisterHit")
-local EnemiesFolder = workspace:WaitForChild("Enemies")
-local CharactersFolder = workspace:WaitForChild("Characters")
-
+-- ===== 全域狀態表=====
 _G.FastAttack = true
 local Settings = {
     AutoClick = true,
     Distance = 50,
     AttackInterval = 0.01,
-    MaxTargets = 20
+    MaxTargets = 20,
+    
 }
 
 local function IsAlive(char)
     local hum = char:FindFirstChild("Humanoid")
     return hum and hum.Health > 0
 end
+-- ===== FastAttack 核心 =====
+local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
+local RegisterHit = Net:WaitForChild("RE/RegisterHit")
+local EnemiesFolder = workspace:WaitForChild("Enemies")
+local CharactersFolder = workspace:WaitForChild("Characters")
 
 -- ===== Xu-hub UI =====
 local screenGui = Instance.new("ScreenGui")
@@ -152,7 +153,7 @@ end)
 -- ===== 側欄按鈕 =====
 local buttonNames = {
     "通用", "設定", "Server", "Status", "PVP", 
-    "Farm", "自動", "未解鎖", "待開發", "待開發"
+    "Farm", "自動", "未解鎖", "未解鎖", "未解鎖"
 }
 
 local buttons = {}
@@ -217,16 +218,101 @@ local function showContent(index)
     end
     
     if index == 1 then
+        local y = 10
+
+		    -- ===== 大標題 =====
+    local mainTitle = Instance.new("TextLabel")
+    mainTitle.Size = UDim2.new(1, -20, 0, 40)
+    mainTitle.Position = UDim2.new(0, 10, 0, y)
+    mainTitle.BackgroundTransparency = 1
+    mainTitle.Text = "ESP"
+    mainTitle.TextColor3 = Color3.fromRGB(50, 50, 50)
+    mainTitle.Font = Enum.Font.SourceSansBold
+    mainTitle.TextScaled = true
+    mainTitle.TextXAlignment = Enum.TextXAlignment.Left
+    mainTitle.Parent = contentFrame
+
+    -- 彩虹顏色效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1 -- 速度可調整，越小越慢
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+	y = y + 40 -- 下一個選項的 y 位置
 
 
     elseif index == 2 then
+        local y = 10
 
-        
+		    -- ===== 大標題 =====
+    local mainTitle = Instance.new("TextLabel")
+    mainTitle.Size = UDim2.new(1, -20, 0, 40)
+    mainTitle.Position = UDim2.new(0, 10, 0, y)
+    mainTitle.BackgroundTransparency = 1
+    mainTitle.Text = "設定"
+    mainTitle.TextColor3 = Color3.fromRGB(50, 50, 50)
+    mainTitle.Font = Enum.Font.SourceSansBold
+    mainTitle.TextScaled = true
+    mainTitle.TextXAlignment = Enum.TextXAlignment.Left
+    mainTitle.Parent = contentFrame
+    
+        -- 彩虹顏色效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1 -- 速度可調整，越小越慢
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+	y = y + 40 -- 下一個選項的 y 位置
+
     elseif index == 3 then
+        local y = 10
 
+		    -- ===== 大標題 =====
+    local mainTitle = Instance.new("TextLabel")
+    mainTitle.Size = UDim2.new(1, -20, 0, 40)
+    mainTitle.Position = UDim2.new(0, 10, 0, y)
+    mainTitle.BackgroundTransparency = 1
+    mainTitle.Text = "Server"
+    mainTitle.TextColor3 = Color3.fromRGB(50, 50, 50)
+    mainTitle.Font = Enum.Font.SourceSansBold
+    mainTitle.TextScaled = true
+    mainTitle.TextXAlignment = Enum.TextXAlignment.Left
+    mainTitle.Parent = contentFrame
+
+    -- 彩虹顏色效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1 -- 速度可調整，越小越慢
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+	y = y + 40 -- 下一個選項的 y 位置
 
     elseif index == 4 then
+        local y = 10
 
+		    -- ===== 大標題 =====
+    local mainTitle = Instance.new("TextLabel")
+    mainTitle.Size = UDim2.new(1, -20, 0, 40)
+    mainTitle.Position = UDim2.new(0, 10, 0, y)
+    mainTitle.BackgroundTransparency = 1
+    mainTitle.Text = "狀態"
+    mainTitle.TextColor3 = Color3.fromRGB(50, 50, 50)
+    mainTitle.Font = Enum.Font.SourceSansBold
+    mainTitle.TextScaled = true
+    mainTitle.TextXAlignment = Enum.TextXAlignment.Left
+    mainTitle.Parent = contentFrame
+    
+    -- 彩虹顏色效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1 -- 速度可調整，越小越慢
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+	y = y + 40 -- 下一個選項的 y 位置
 
     elseif index == 5 then
         local y = 10
@@ -236,7 +322,7 @@ local function showContent(index)
     mainTitle.Size = UDim2.new(1, -20, 0, 40)
     mainTitle.Position = UDim2.new(0, 10, 0, y)
     mainTitle.BackgroundTransparency = 1
-    mainTitle.Text = "PVP 自動攻擊與免控設定"
+    mainTitle.Text = "PVP"
     mainTitle.TextColor3 = Color3.fromRGB(50, 50, 50)
     mainTitle.Font = Enum.Font.SourceSansBold
     mainTitle.TextScaled = true
@@ -360,18 +446,124 @@ end)
         y = y + 60
 
     elseif index == 6 then
+        local y = 10
 
+		    -- ===== 大標題 =====
+    local mainTitle = Instance.new("TextLabel")
+    mainTitle.Size = UDim2.new(1, -20, 0, 40)
+    mainTitle.Position = UDim2.new(0, 10, 0, y)
+    mainTitle.BackgroundTransparency = 1
+    mainTitle.Text = "Farm"
+    mainTitle.TextColor3 = Color3.fromRGB(50, 50, 50)
+    mainTitle.Font = Enum.Font.SourceSansBold
+    mainTitle.TextScaled = true
+    mainTitle.TextXAlignment = Enum.TextXAlignment.Left
+    mainTitle.Parent = contentFrame
+
+    -- 彩虹顏色效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1 -- 速度可調整，越小越慢
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+	y = y + 40 -- 下一個選項的 y 位置
 
     elseif index == 7 then
+        local y = 10
 
+		    -- ===== 大標題 =====
+    local mainTitle = Instance.new("TextLabel")
+    mainTitle.Size = UDim2.new(1, -20, 0, 40)
+    mainTitle.Position = UDim2.new(0, 10, 0, y)
+    mainTitle.BackgroundTransparency = 1
+    mainTitle.Text = "自動"
+    mainTitle.TextColor3 = Color3.fromRGB(50, 50, 50)
+    mainTitle.Font = Enum.Font.SourceSansBold
+    mainTitle.TextScaled = true
+    mainTitle.TextXAlignment = Enum.TextXAlignment.Left
+    mainTitle.Parent = contentFrame
+
+    -- 彩虹顏色效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1 -- 速度可調整，越小越慢
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+	y = y + 40 -- 下一個選項的 y 位置
 
     elseif index == 8 then
+        local y = 10
 
+		    -- ===== 大標題 =====
+    local mainTitle = Instance.new("TextLabel")
+    mainTitle.Size = UDim2.new(1, -20, 0, 100)
+    mainTitle.Position = UDim2.new(0, 10, 0, y)
+    mainTitle.BackgroundTransparency = 1
+    mainTitle.Text = "未解鎖"
+    mainTitle.TextColor3 = Color3.fromRGB(50, 50, 50)
+    mainTitle.Font = Enum.Font.SourceSansBold
+    mainTitle.TextScaled = true
+    mainTitle.TextXAlignment = Enum.TextXAlignment.Left
+    mainTitle.Parent = contentFrame
+
+    -- 彩虹顏色效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1 -- 速度可調整，越小越慢
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+	y = y + 40 -- 下一個選項的 y 位置
 
     elseif index == 9 then
+        local y = 10
 
+		    -- ===== 大標題 =====
+    local mainTitle = Instance.new("TextLabel")
+    mainTitle.Size = UDim2.new(1, -20, 0, 100)
+    mainTitle.Position = UDim2.new(0, 10, 0, y)
+    mainTitle.BackgroundTransparency = 1
+    mainTitle.Text = "未解鎖"
+    mainTitle.TextColor3 = Color3.fromRGB(50, 50, 50)
+    mainTitle.Font = Enum.Font.SourceSansBold
+    mainTitle.TextScaled = true
+    mainTitle.TextXAlignment = Enum.TextXAlignment.Left
+    mainTitle.Parent = contentFrame
+
+    -- 彩虹顏色效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1 -- 速度可調整，越小越慢
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+	y = y + 40 -- 下一個選項的 y 位置
 
     elseif index == 10 then
+        local y = 10
+
+		    -- ===== 大標題 =====
+    local mainTitle = Instance.new("TextLabel")
+    mainTitle.Size = UDim2.new(1, -20, 0, 100)
+    mainTitle.Position = UDim2.new(0, 10, 0, y)
+    mainTitle.BackgroundTransparency = 1
+    mainTitle.Text = "未解鎖"
+    mainTitle.TextColor3 = Color3.fromRGB(50, 50, 50)
+    mainTitle.Font = Enum.Font.SourceSansBold
+    mainTitle.TextScaled = true
+    mainTitle.TextXAlignment = Enum.TextXAlignment.Left
+    mainTitle.Parent = contentFrame
+    
+        -- 彩虹顏色效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1 -- 速度可調整，越小越慢
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+	y = y + 40 -- 下一個選項的 y 位置
 
     end
 end
