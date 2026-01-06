@@ -830,30 +830,6 @@ end)
 
 	y = y + 40 -- 下一個選項的 y 位置
 
-    elseif index == 7 then
-        local y = 10
-
-		    -- ===== 大標題 =====
-    local mainTitle = Instance.new("TextLabel")
-    mainTitle.Size = UDim2.new(1, -20, 0, 40)
-    mainTitle.Position = UDim2.new(0, 10, 0, y)
-    mainTitle.BackgroundTransparency = 1
-    mainTitle.Text = "自動"
-    mainTitle.TextColor3 = Color3.fromRGB(50, 50, 50)
-    mainTitle.Font = Enum.Font.SourceSansBold
-    mainTitle.TextScaled = true
-    mainTitle.TextXAlignment = Enum.TextXAlignment.Left
-    mainTitle.Parent = contentFrame
-
-    -- 彩虹顏色效果
-local hue = 0
-RunService.RenderStepped:Connect(function(dt)
-    hue = (hue + dt/2) % 1 -- 速度可調整，越小越慢
-    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
-end)
-
-	y = y + 40 -- 下一個選項的 y 位置
-
 createOptionRow(contentFrame, y, "TP to NPC", function(row)
     local switchBg = Instance.new("Frame")
     switchBg.Size = UDim2.new(0,60,0.5,0)
@@ -982,6 +958,31 @@ createOptionRow(contentFrame, y, "TP範圍:", function(row)
 end)
 
 y = y + 60
+
+    elseif index == 7 then
+        local y = 10
+
+		    -- ===== 大標題 =====
+    local mainTitle = Instance.new("TextLabel")
+    mainTitle.Size = UDim2.new(1, -20, 0, 40)
+    mainTitle.Position = UDim2.new(0, 10, 0, y)
+    mainTitle.BackgroundTransparency = 1
+    mainTitle.Text = "自動"
+    mainTitle.TextColor3 = Color3.fromRGB(50, 50, 50)
+    mainTitle.Font = Enum.Font.SourceSansBold
+    mainTitle.TextScaled = true
+    mainTitle.TextXAlignment = Enum.TextXAlignment.Left
+    mainTitle.Parent = contentFrame
+
+    -- 彩虹顏色效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1 -- 速度可調整，越小越慢
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+	y = y + 40 -- 下一個選項的 y 位置
+
     elseif index == 8 then
         local y = 10
 
