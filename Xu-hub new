@@ -173,7 +173,7 @@ local function startFarmTP()
     end)
 end
 
--- ===== ESP 核心函數（直接放在主程式，不用單獨 GUI） =====
+-- ===== ESP 核心 =====
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
