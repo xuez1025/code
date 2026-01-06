@@ -16,7 +16,6 @@ local Settings = {
     Distance = 50,
     AttackInterval = 0.01,
     MaxTargets = 20,
-    ESP_ENABLED = false,
     
 }
 
@@ -31,78 +30,90 @@ local RegisterHit = Net:WaitForChild("RE/RegisterHit")
 local EnemiesFolder = workspace:WaitForChild("Enemies")
 local CharactersFolder = workspace:WaitForChild("Characters")
 
--- ===== ESP 核心 =====
-local function getESPColor(player)
-    local myTeam = player.Team
-    local playerTeam = player.Team
+-- ================= 免控旋轉核心 =================
+local ROTATION_SPEED = 2000
+local SLIDE_MAGNITUDE = 350
+local JUMP_HEIGHT = 100
 
-    if myTeam and playerTeam then
-        if myTeam == playerTeam then
-            return Color3.fromRGB(0,255,0)
-        else
-            return Color3.fromRGB(255,0,0)
+local rotating = false
+local rotationConn
+local currentYaw = 0
+local moveKeys = {W=false,A=false,S=false,D=false}
+local jumpHold = false
+
+local player = Players.LocalPlayer
+local character, root, humanoid
+
+local function setupCharacter(char)
+    character = char
+    root = char:WaitForChild("HumanoidRootPart")
+    humanoid = char:WaitForChild("Humanoid")
+    humanoid.AutoRotate = false
+end
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+player.CharacterAdded:Connect(setupCharacter)
+
+-- WASD / Jump
+UserInputService.InputBegan:Connect(function(input,gpe)
+    if gpe then return end
+    if input.KeyCode==Enum.KeyCode.W then moveKeys.W=true end
+    if input.KeyCode==Enum.KeyCode.A then moveKeys.A=true end
+    if input.KeyCode==Enum.KeyCode.S then moveKeys.S=true end
+    if input.KeyCode==Enum.KeyCode.D then moveKeys.D=true end
+    if input.KeyCode==Enum.KeyCode.Space then jumpHold=true end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode==Enum.KeyCode.W then moveKeys.W=false end
+    if input.KeyCode==Enum.KeyCode.A then moveKeys.A=false end
+    if input.KeyCode==Enum.KeyCode.S then moveKeys.S=false end
+    if input.KeyCode==Enum.KeyCode.D then moveKeys.D=false end
+    if input.KeyCode==Enum.KeyCode.Space then jumpHold=false end
+end)
+
+local function startRotation()
+    if rotating or not root then return end
+    rotating = true
+    currentYaw = root.Orientation.Y
+
+    rotationConn = RunService.RenderStepped:Connect(function(dt)
+        currentYaw += ROTATION_SPEED * dt
+
+        local cam = Workspace.CurrentCamera
+        local look = Vector3.new(cam.CFrame.LookVector.X,0,cam.CFrame.LookVector.Z)
+        local right = Vector3.new(cam.CFrame.RightVector.X,0,cam.CFrame.RightVector.Z)
+
+        local dir = Vector3.zero
+        if moveKeys.W then dir += look end
+        if moveKeys.S then dir -= look end
+        if moveKeys.A then dir -= right end
+        if moveKeys.D then dir += right end
+        if dir.Magnitude > 0 then dir = dir.Unit end
+
+        local delta = dir * SLIDE_MAGNITUDE * dt
+        if jumpHold then
+            delta += Vector3.new(0, JUMP_HEIGHT * dt, 0)
         end
-    end
-    return Color3.fromRGB(255,255,255)
+
+        root.CFrame =
+            CFrame.new(root.Position + delta)
+            * CFrame.Angles(0, math.rad(currentYaw), 0)
+    end)
 end
 
-local function createESP(player)
-    if not player.Character then return end
-    if player.Character:FindFirstChild("ESP_Highlight") then return end
-
-    local color = getESPColor(player)
-
-    local h = Instance.new("Highlight")
-    h.Name = "ESP_Highlight"
-    h.FillColor = color
-    h.OutlineColor = Color3.fromRGB(255,255,255)
-    h.FillTransparency = 0.2
-    h.OutlineTransparency = 0
-    h.Adornee = player.Character
-    h.Parent = player.Character
-
-    local head = player.Character:FindFirstChild("Head")
-    if not head then return end
-
-    local bill = Instance.new("BillboardGui")
-    bill.Name = "ESP_Billboard"
-    bill.Size = UDim2.fromOffset(180,50)
-    bill.StudsOffset = Vector3.new(0,3,0)
-    bill.AlwaysOnTop = true
-    bill.Parent = head
-
-    local text = Instance.new("TextLabel", bill)
-    text.Size = UDim2.fromOffset(180,50)
-    text.Position = UDim2.fromOffset(0,0)
-    text.BackgroundTransparency = 1
-    text.TextColor3 = color
-    text.TextStrokeTransparency = 0
-    text.TextTransparency = 0.2
-    text.Font = Enum.Font.SourceSansBold
-    text.TextSize = 20
-    text.Name = "Info"
-end
-
-local function removeESP(player)
-    if not player.Character then return end
-    local h = player.Character:FindFirstChild("ESP_Highlight")
-    if h then h:Destroy() end
-    local head = player.Character:FindFirstChild("Head")
-    if head then
-        local bill = head:FindFirstChild("ESP_Billboard")
-        if bill then bill:Destroy() end
+local function stopRotation()
+    rotating = false
+    if rotationConn then
+        rotationConn:Disconnect()
+        rotationConn = nil
     end
 end
 
-local function refreshESP()
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player then
-            if ESP_ENABLED then
-                createESP(p)
-            else
-                removeESP(p)
-            end
-        end
+local function toggleRotation(state)
+    if state then
+        startRotation()
+    else
+        stopRotation()
     end
 end
 
@@ -518,6 +529,49 @@ end)
             end)
         end)
         y = y + 60
+-- ===== 免控旋轉滑動開關 =====
+createOptionRow(contentFrame, y, "免控旋轉", function(row)
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0,60,0.5,0)
+    switchBg.Position = UDim2.new(1,-70,0.25,0)
+    switchBg.BackgroundColor3 = rotating and Color3.fromRGB(0,200,0)
+        or Color3.fromRGB(100,100,100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,28,1,0)
+    knob.Position = rotating
+        and UDim2.new(1,-28,0,0)
+        or UDim2.new(0,0,0,0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+
+    local enabled = rotating
+    local function toggle()
+        enabled = not enabled
+        toggleRotation(enabled)
+
+        if enabled then
+            knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
+        else
+            knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+        end
+    end
+
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggle()
+        end
+    end)
+end)
+
+y = y + 60
 
     elseif index == 6 then
         local y = 10
