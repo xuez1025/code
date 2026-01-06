@@ -117,6 +117,62 @@ local function toggleRotation(state)
     end
 end
 
+-- ===== Farm TP 核心狀態 =====
+local FarmTP = {
+    Enabled = false,
+    HoverHeight = 10,
+    Range = 500,
+    BaseSpeed = 0.1
+}
+
+local farmConn
+
+local function stopFarmTP()
+    FarmTP.Enabled = false
+    if farmConn then
+        farmConn:Disconnect()
+        farmConn = nil
+    end
+end
+
+local function startFarmTP()
+    if farmConn then return end
+
+    farmConn = RunService.Heartbeat:Connect(function()
+        if not FarmTP.Enabled then return end
+
+        local char = player.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        local enemiesFolder = workspace:FindFirstChild("Enemies")
+        if not enemiesFolder then return end
+
+        local nearest, minDist = nil, math.huge
+
+        for _, npc in ipairs(enemiesFolder:GetChildren()) do
+            local hum = npc:FindFirstChild("Humanoid")
+            local hrpNpc = npc:FindFirstChild("HumanoidRootPart") or npc:FindFirstChild("Head")
+            if hum and hum.Health > 0 and hrpNpc then
+                local dist = (hrpNpc.Position - hrp.Position).Magnitude
+                if dist < minDist and dist <= FarmTP.Range then
+                    minDist = dist
+                    nearest = hrpNpc
+                end
+            end
+        end
+
+        if nearest then
+            local targetPos = nearest.Position + Vector3.new(0, FarmTP.HoverHeight, 0)
+            local speed = FarmTP.BaseSpeed
+            if minDist < FarmTP.Range / 2 then
+                speed = speed * 5
+            end
+            hrp.CFrame = CFrame.new(hrp.Position:Lerp(targetPos, speed))
+        end
+    end)
+end
+
 -- ===== Xu-hub UI =====
 local screenGui = Instance.new("ScreenGui")
 screenGui.Parent = PlayerGui
@@ -284,12 +340,14 @@ local function createOptionRow(parent, yPos, labelText, contentFunc)
     rowCorner.Parent = rowFrame
 
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0,120,1,0)
+    label.Size = UDim2.new(0,160,1,0)
     label.Position = UDim2.new(0,10,0,0)
     label.BackgroundTransparency = 1
     label.Text = labelText
     label.TextColor3 = Color3.fromRGB(255,255,255)
     label.TextScaled = true
+    label.TextSize = 20
+    label.TextWrapped = false
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = rowFrame
 
@@ -530,7 +588,7 @@ end)
         end)
         y = y + 60
 -- ===== 免控旋轉滑動開關 =====
-createOptionRow(contentFrame, y, "免控旋轉", function(row)
+createOptionRow(contentFrame, y, "免控", function(row)
     local switchBg = Instance.new("Frame")
     switchBg.Size = UDim2.new(0,60,0.5,0)
     switchBg.Position = UDim2.new(1,-70,0.25,0)
@@ -588,6 +646,7 @@ y = y + 60
     mainTitle.TextXAlignment = Enum.TextXAlignment.Left
     mainTitle.Parent = contentFrame
 
+
     -- 彩虹顏色效果
 local hue = 0
 RunService.RenderStepped:Connect(function(dt)
@@ -621,6 +680,134 @@ end)
 
 	y = y + 40 -- 下一個選項的 y 位置
 
+createOptionRow(contentFrame, y, "TP to NPC", function(row)
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0,60,0.5,0)
+    switchBg.Position = UDim2.new(1,-70,0.25,0)
+    switchBg.BackgroundColor3 = FarmTP.Enabled and Color3.fromRGB(0,200,0)
+        or Color3.fromRGB(100,100,100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,28,1,0)
+    knob.Position = FarmTP.Enabled
+        and UDim2.new(1,-28,0,0)
+        or UDim2.new(0,0,0,0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+
+    local function toggle()
+        FarmTP.Enabled = not FarmTP.Enabled
+
+        if FarmTP.Enabled then
+            knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
+            startFarmTP()
+        else
+            knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+            stopFarmTP()
+        end
+    end
+
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggle()
+        end
+    end)
+end)
+
+y = y + 60
+createOptionRow(contentFrame, y, "飛行高度:", function(row)
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0,80,0.6,0)
+    inputBox.Position = UDim2.new(0,130,0.2,0)
+    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+    inputBox.TextScaled = true
+    inputBox.ClearTextOnFocus = false
+    inputBox.Text = tostring(FarmTP.HoverHeight)
+    inputBox.Parent = row
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,200,0.3,0)
+    slider.Position = UDim2.new(0,220,0.35,0)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = row
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(FarmTP.HoverHeight/50,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(255,150,0)
+    fill.Parent = slider
+
+    local MAX_HEIGHT = 50
+    local dragging = false
+
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    slider.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local x = math.clamp(input.Position.X - slider.AbsolutePosition.X,0,slider.AbsoluteSize.X)
+            local val = math.floor((x/slider.AbsoluteSize.X)*MAX_HEIGHT)
+            FarmTP.HoverHeight = val
+            inputBox.Text = tostring(val)
+            fill.Size = UDim2.new(x/slider.AbsoluteSize.X,0,1,0)
+        end
+    end)
+end)
+
+y = y + 60
+createOptionRow(contentFrame, y, "TP範圍:", function(row)
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0,80,0.6,0)
+    inputBox.Position = UDim2.new(0,130,0.2,0)
+    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+    inputBox.TextScaled = true
+    inputBox.ClearTextOnFocus = false
+    inputBox.Text = tostring(FarmTP.Range)
+    inputBox.Parent = row
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,200,0.3,0)
+    slider.Position = UDim2.new(0,220,0.35,0)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = row
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(FarmTP.Range/2000,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(0,255,150)
+    fill.Parent = slider
+
+    local MAX_RANGE = 2000
+    local dragging = false
+
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    slider.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local x = math.clamp(input.Position.X - slider.AbsolutePosition.X,0,slider.AbsoluteSize.X)
+            local val = math.floor((x/slider.AbsoluteSize.X)*MAX_RANGE)
+            FarmTP.Range = val
+            inputBox.Text = tostring(val)
+            fill.Size = UDim2.new(x/slider.AbsoluteSize.X,0,1,0)
+        end
+    end)
+end)
+
+y = y + 60
     elseif index == 8 then
         local y = 10
 
