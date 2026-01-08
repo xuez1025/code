@@ -593,7 +593,7 @@ createOptionRow(contentFrame, y, "ESP", function(row)
 end)
 y = y + 60
 -- ================= Noclip =================
-createOptionRow(contentFrame, y, "Noclip 穿牆", function(row)
+createOptionRow(contentFrame, y, "穿牆", function(row)
     local switchBg = Instance.new("Frame")
     switchBg.Size = UDim2.new(0,60,0.5,0)
     switchBg.Position = UDim2.new(1,-70,0.25,0)
