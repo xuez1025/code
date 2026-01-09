@@ -339,6 +339,37 @@ local function setNoclipState(state)
     end
 end
 
+-- ================= Anti AFK =================
+local AntiAFK = {
+    Enabled = false
+}
+
+local vu = game:GetService("VirtualUser")
+local speaker = Players.LocalPlayer
+
+local function EnableAntiAFK()
+    AntiAFK.Enabled = true
+    
+    if getconnections then
+        for _, connection in pairs(getconnections(speaker.Idled)) do
+            if connection.Disable then
+                connection.Disable(connection)
+            elseif connection.Disconnect then
+                connection.Disconnect(connection)
+            end
+        end
+    else
+        speaker.Idled:Connect(function()
+            vu:CaptureController()
+            vu:ClickButton2(Vector2.new())
+        end)
+    end
+end
+
+local function DisableAntiAFK()
+    AntiAFK.Enabled = false
+end
+
 -- ===== Xu-hub UI =====
 local screenGui = Instance.new("ScreenGui")
 screenGui.Parent = PlayerGui
@@ -655,8 +686,51 @@ RunService.RenderStepped:Connect(function(dt)
 end)
 
 	y = y + 40 -- 下一個選項的 y 位置
-    
-    elseif index == 3 then
+
+    createOptionRow(contentFrame, y, "Anti AFK", function(row)
+        local switchBg = Instance.new("Frame")
+        switchBg.Size = UDim2.new(0,60,0.5,0)
+        switchBg.Position = UDim2.new(1,-70,0.25,0)
+        switchBg.BackgroundColor3 = AntiAFK.Enabled and Color3.fromRGB(0,200,0)
+            or Color3.fromRGB(100,100,100)
+        switchBg.BorderSizePixel = 0
+        switchBg.Parent = row
+        Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+
+        local knob = Instance.new("Frame")
+        knob.Size = UDim2.new(0,28,1,0)
+        knob.Position = AntiAFK.Enabled and UDim2.new(1,-28,0,0)
+            or UDim2.new(0,0,0,0)
+        knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+        knob.BorderSizePixel = 0
+        knob.Parent = switchBg
+        Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+
+        switchBg.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                AntiAFK.Enabled = not AntiAFK.Enabled
+
+                if AntiAFK.Enabled then
+                    EnableAntiAFK()
+                else
+                    DisableAntiAFK()
+                end
+
+                switchBg.BackgroundColor3 = AntiAFK.Enabled and Color3.fromRGB(0,200,0)
+                    or Color3.fromRGB(100,100,100)
+
+                knob:TweenPosition(
+                    AntiAFK.Enabled and UDim2.new(1,-28,0,0)
+                    or UDim2.new(0,0,0,0),
+                    "Out","Quad",0.2,true
+                )
+            end
+        end)
+    end)
+
+ y = y + 60
+
+elseif index == 3 then
         local y = 10
 
 		    -- ===== 大標題 =====
