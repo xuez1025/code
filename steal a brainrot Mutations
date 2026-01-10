@@ -14,8 +14,7 @@ local heartbeatConnection
 local autoBuyLoopRunning = false
 local canBuy = false
 
-local HOLD_DURATION = 1
-local WAIT_DURATION = 0
+local HOLD_DURATION = 0.26 -- 按住 E 時長（秒）
 
 -- ================== 防擊退 ==================
 local function enableAntiKnockback(character)
@@ -53,10 +52,10 @@ local function autoBuyLoop()
 
     while autoBuyEnabled do
         if canBuy then
-            holdE()
-            task.wait(WAIT_DURATION)
+            holdE() -- 按住 E
+            -- 立即再次檢查，不等待
         else
-            task.wait(0.1)
+            task.wait(0.1) -- 無法買時稍微等待避免卡死
         end
     end
 
