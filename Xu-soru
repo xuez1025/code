@@ -1,8 +1,10 @@
 -- ===== Services =====
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
 
 -- ===== States =====
 local selectedPlayer = nil
@@ -144,7 +146,7 @@ local function refreshPlayers()
 		UDim2.new(0,0,0,UIListLayout.AbsoluteContentSize.Y + 10)
 end
 
--- ===== Teleport Logic (Behind Target) =====
+-- ===== Teleport Logic（水平順移、貼近玩家）=====
 local function teleportToPlayer()
 	if not guiEnabled or not selectedPlayer then return end
 
@@ -156,10 +158,32 @@ local function teleportToPlayer()
 	local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
 	if not (myHRP and targetHRP) then return end
 
-	local behindPos =
-		targetHRP.Position - targetHRP.CFrame.LookVector * 5
+	local distance = 8
 
-	myHRP.CFrame = CFrame.new(behindPos, targetHRP.Position)
+	-- 只取 Camera 水平方向
+	local flatDir = Vector3.new(
+		Camera.CFrame.LookVector.X,
+		0,
+		Camera.CFrame.LookVector.Z
+	)
+	if flatDir.Magnitude < 0.01 then return end
+	flatDir = flatDir.Unit
+
+	-- 高度貼近玩家，避免出現自己比玩家高而飄到頭上
+	local playerHRP_Y = targetHRP.Position.Y
+
+	-- 可選加一個微調，讓自己站在玩家旁邊的地面高度
+	local finalPos = Vector3.new(
+		targetHRP.Position.X,
+		playerHRP_Y,       -- 貼近玩家水平面
+		targetHRP.Position.Z
+	) - flatDir * distance
+
+	-- 朝向：水平看前方
+	myHRP.CFrame = CFrame.new(
+		finalPos,
+		finalPos + flatDir
+	)
 end
 
 -- ===== Connections =====
