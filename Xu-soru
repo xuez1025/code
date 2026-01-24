@@ -1,14 +1,16 @@
+-- ===== Services =====
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local Debris = game:GetService("Debris")
 
 local player = Players.LocalPlayer
 
+-- ===== States =====
 local selectedPlayer = nil
 local guiEnabled = true
 local playerButtons = {}
 local isMinimized = false
 
+-- ===== GUI =====
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "TeleportGUI"
 ScreenGui.ResetOnSpawn = false
@@ -22,6 +24,7 @@ MainFrame.Active = true
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame)
 
+-- ===== Drag =====
 do
 	local dragging, dragStart, startPos
 	MainFrame.InputBegan:Connect(function(inp)
@@ -47,8 +50,9 @@ do
 	end)
 end
 
+-- ===== Title =====
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1,-80,0,40)
+Title.Size = UDim2.new(1,-120,0,40)
 Title.Position = UDim2.new(0,10,0,10)
 Title.BackgroundTransparency = 1
 Title.Text = "Xu-順步"
@@ -57,13 +61,14 @@ Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
 Title.Parent = MainFrame
 
+-- ===== Buttons =====
 local CloseButton = Instance.new("TextButton")
 CloseButton.Size = UDim2.new(0,40,0,30)
 CloseButton.Position = UDim2.new(1,-50,0,15)
 CloseButton.Text = "X"
-CloseButton.TextColor3 = Color3.new(1,1,1)
 CloseButton.Font = Enum.Font.SourceSansBold
 CloseButton.TextSize = 18
+CloseButton.TextColor3 = Color3.new(1,1,1)
 CloseButton.BackgroundColor3 = Color3.fromRGB(170,60,60)
 CloseButton.Parent = MainFrame
 Instance.new("UICorner", CloseButton)
@@ -72,13 +77,14 @@ local MinimizeButton = Instance.new("TextButton")
 MinimizeButton.Size = UDim2.new(0,40,0,30)
 MinimizeButton.Position = UDim2.new(1,-100,0,15)
 MinimizeButton.Text = "-"
-MinimizeButton.TextColor3 = Color3.new(1,1,1)
 MinimizeButton.Font = Enum.Font.SourceSansBold
 MinimizeButton.TextSize = 18
+MinimizeButton.TextColor3 = Color3.new(1,1,1)
 MinimizeButton.BackgroundColor3 = Color3.fromRGB(100,100,100)
 MinimizeButton.Parent = MainFrame
 Instance.new("UICorner", MinimizeButton)
 
+-- ===== Player List =====
 local ScrollingFrame = Instance.new("ScrollingFrame")
 ScrollingFrame.Size = UDim2.new(1,-20,1,-130)
 ScrollingFrame.Position = UDim2.new(0,10,0,60)
@@ -89,10 +95,11 @@ local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Padding = UDim.new(0,6)
 UIListLayout.Parent = ScrollingFrame
 
+-- ===== Teleport Button =====
 local TeleportButton = Instance.new("TextButton")
 TeleportButton.Size = UDim2.new(1,-20,0,40)
 TeleportButton.Position = UDim2.new(0,10,1,-50)
-TeleportButton.Text = "TP(快捷鍵G)"
+TeleportButton.Text = "TP (G)"
 TeleportButton.Font = Enum.Font.SourceSansBold
 TeleportButton.TextSize = 18
 TeleportButton.TextColor3 = Color3.new(1,1,1)
@@ -100,25 +107,11 @@ TeleportButton.BackgroundColor3 = Color3.fromRGB(70,140,220)
 TeleportButton.Parent = MainFrame
 Instance.new("UICorner", TeleportButton)
 
-local function playFireEffect(hrp)
-	local att = Instance.new("Attachment", hrp)
-	local particle = Instance.new("ParticleEmitter")
-	particle.Texture = "rbxasset://textures/particles/fire_main.dds"
-	particle.Rate = 500
-	particle.Lifetime = NumberRange.new(0.4,0.6)
-	particle.Speed = NumberRange.new(10,15)
-	particle.Size = NumberSequence.new({NumberSequenceKeypoint.new(0,3), NumberSequenceKeypoint.new(1,0)})
-	particle.SpreadAngle = Vector2.new(360,360)
-	particle.Color = ColorSequence.new(Color3.fromRGB(255,120,40), Color3.fromRGB(255,40,20))
-	particle.LightEmission = 1
-	particle.Parent = att
-	particle:Emit(100)
-	Debris:AddItem(att,0.6)
-end
-
+-- ===== Refresh Player List =====
 local function refreshPlayers()
 	for _, b in pairs(playerButtons) do b:Destroy() end
 	playerButtons = {}
+
 	for _, plr in ipairs(Players:GetPlayers()) do
 		if plr ~= player then
 			local btn = Instance.new("TextButton")
@@ -127,9 +120,13 @@ local function refreshPlayers()
 			btn.Font = Enum.Font.SourceSans
 			btn.TextSize = 16
 			btn.TextColor3 = Color3.new(1,1,1)
-			btn.BackgroundColor3 = (plr == selectedPlayer and Color3.fromRGB(80,180,80)) or Color3.fromRGB(120,120,120)
+			btn.BackgroundColor3 = (plr == selectedPlayer)
+				and Color3.fromRGB(80,180,80)
+				or Color3.fromRGB(120,120,120)
+
 			btn.Parent = ScrollingFrame
 			Instance.new("UICorner", btn)
+
 			btn.MouseButton1Click:Connect(function()
 				selectedPlayer = plr
 				for _, other in pairs(playerButtons) do
@@ -137,32 +134,42 @@ local function refreshPlayers()
 				end
 				btn.BackgroundColor3 = Color3.fromRGB(80,180,80)
 			end)
+
 			playerButtons[plr] = btn
 		end
 	end
+
 	task.wait()
-	ScrollingFrame.CanvasSize = UDim2.new(0,0,0,UIListLayout.AbsoluteContentSize.Y + 10)
+	ScrollingFrame.CanvasSize =
+		UDim2.new(0,0,0,UIListLayout.AbsoluteContentSize.Y + 10)
 end
 
+-- ===== Teleport Logic (Behind Target) =====
 local function teleportToPlayer()
 	if not guiEnabled or not selectedPlayer then return end
+
 	local myChar = player.Character
 	local targetChar = selectedPlayer.Character
 	if not (myChar and targetChar) then return end
+
 	local myHRP = myChar:FindFirstChild("HumanoidRootPart")
 	local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
 	if not (myHRP and targetHRP) then return end
-	playFireEffect(myHRP)
-	task.wait(0.15)
-	local behind = targetHRP.Position - targetHRP.CFrame.LookVector*5
-	myHRP.CFrame = CFrame.new(behind,targetHRP.Position)
-	playFireEffect(myHRP)
+
+	local behindPos =
+		targetHRP.Position - targetHRP.CFrame.LookVector * 5
+
+	myHRP.CFrame = CFrame.new(behindPos, targetHRP.Position)
 end
 
+-- ===== Connections =====
 TeleportButton.MouseButton1Click:Connect(teleportToPlayer)
-UserInputService.InputBegan:Connect(function(input,gp)
-	if gp then return end
-	if input.KeyCode == Enum.KeyCode.G then teleportToPlayer() end
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp or not guiEnabled then return end
+	if input.KeyCode == Enum.KeyCode.G then
+		teleportToPlayer()
+	end
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
@@ -172,13 +179,11 @@ end)
 
 MinimizeButton.MouseButton1Click:Connect(function()
 	if isMinimized then
-  
 		ScrollingFrame.Visible = true
 		TeleportButton.Visible = true
 		MainFrame.Size = UDim2.new(0,300,0,400)
 		isMinimized = false
 	else
-  
 		ScrollingFrame.Visible = false
 		TeleportButton.Visible = false
 		MainFrame.Size = UDim2.new(0,200,0,50)
@@ -188,4 +193,5 @@ end)
 
 Players.PlayerAdded:Connect(refreshPlayers)
 Players.PlayerRemoving:Connect(refreshPlayers)
+
 refreshPlayers()
