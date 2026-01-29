@@ -17,7 +17,7 @@ ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0,260,0,140)
-Main.Position = UDim2.new(0.02,0,0.3,0)
+Main.Position = UDim2.new(0.5, -130, 0.5, -70) -- 初始位置在螢幕正中間
 Main.BackgroundColor3 = Color3.fromRGB(30,30,30)
 Main.BorderSizePixel = 0
 Main.Active = true
@@ -26,7 +26,7 @@ Main.Draggable = true
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,-60,0,30)
 Title.Position = UDim2.new(0,10,0,0)
-Title.Text = my waterpark"
+Title.Text = "my waterpark"
 Title.TextColor3 = Color3.new(1,1,1)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.SourceSansBold
@@ -57,7 +57,14 @@ local minimized = false
 MinBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     CollectBtn.Visible = not minimized
-    Main.Size = minimized and UDim2.new(0,260,0,35) or UDim2.new(0,260,0,140)
+    if minimized then
+        Main.Size = UDim2.new(0,260,0,35)
+        -- 將縮小後的位置維持中心對齊
+        Main.Position = UDim2.new(0.5, -130, 0.5, -17)
+    else
+        Main.Size = UDim2.new(0,260,0,140)
+        Main.Position = UDim2.new(0.5, -130, 0.5, -70)
+    end
 end)
 
 CloseBtn.MouseButton1Click:Connect(function()
