@@ -30,7 +30,7 @@
         local EnemiesFolder = workspace:WaitForChild("Enemies")
         local CharactersFolder = workspace:WaitForChild("Characters")
 
--- ================= 免控滑行核心 =================
+-- ================= 免控滑行核心（無旋轉） =================
 local SLIDE_MAGNITUDE = 350
 local JUMP_HEIGHT = 100
 
@@ -398,6 +398,34 @@ end
             end
         end
 
+        -- ===== v3核心 =====
+
+local Scripts = {}
+
+Scripts["自動v3"] = {
+    Enabled = false,
+    _conn = nil,
+
+    Func = function(self)
+        local VirtualInputManager = game:GetService("VirtualInputManager")
+        if self._conn then return end
+        self._conn = task.spawn(function()
+            while self.Enabled do
+                -- 按下 T
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.T, false, game)
+                task.wait(0.01)
+                -- 放開 T
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.T, false, game)
+                task.wait(0.5)
+            end
+        end)
+    end,
+
+    StopFunc = function(self)
+        self.Enabled = false
+        self._conn = nil
+    end
+}
         
         -- ===== Xu-hub UI =====
         local screenGui = Instance.new("ScreenGui")
@@ -1400,6 +1428,8 @@ mainTitle.TextYAlignment = Enum.TextYAlignment.Center
 mainTitle.TextSize = 40      -- ★★★ 在這裡改字大小 ★★★
 mainTitle.Parent = contentFrame
 
+        y = y + 60
+
 -- 彩虹效果
 local hue = 0
 RunService.RenderStepped:Connect(function(dt)
@@ -1407,7 +1437,41 @@ RunService.RenderStepped:Connect(function(dt)
     mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
 end)
 
-y = y + 60 -- 下一個選項的 y 位置
+createOptionRow(contentFrame, y, "race v3", function(row)
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0, 60, 0.5, 0)
+    switchBg.Position = UDim2.new(1, -70, 0.25, 0)
+    switchBg.BackgroundColor3 = Scripts["自動v3"].Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 28, 1, 0)
+    knob.Position = Scripts["自動v3"].Enabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 20)
+
+    -- 點擊切換開關
+    local UIS = game:GetService("UserInputService")
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            Scripts["自動v3"].Enabled = not Scripts["自動v3"].Enabled
+            if Scripts["自動v3"].Enabled then
+                Scripts["自動v3"]:Func()
+            else
+                Scripts["自動v3"]:StopFunc()
+            end
+            -- 更新UI
+            switchBg.BackgroundColor3 = Scripts["自動v3"].Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
+            knob.Position = Scripts["自動v3"].Enabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
+        end
+    end)
+end)
+
+        y = y + 60
 
             elseif index == 8 then
                     local y = 10
