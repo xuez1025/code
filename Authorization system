@@ -9,8 +9,7 @@ local allowedUsers = {
 
 -- ================= 權限檢查 =================
 if allowedUsers[player.UserId] ~= true then
-    player:Kick("You have been permanently banned.
-    或者叫大帥哥Xu給你權限吧")
+    player:Kick("You have been permanently banned.")
     return
 end
 
