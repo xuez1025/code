@@ -617,7 +617,7 @@ end)
 
         -- ===== 側欄按鈕 =====
         local buttonNames = {
-            "通用", "設定", "Server", "Status", "PVP", 
+            "通用", "設定", "Server", "狀態", "PVP", 
             "Farm", "自動", "傳送", "未解鎖", "未解鎖"
         }
 
@@ -1329,29 +1329,135 @@ end)
 
 y = y + 60
 
-            elseif index == 4 then
-                    local y = 10
--- ===== 彩虹大標題 =====
-local mainTitle = Instance.new("TextLabel")
-mainTitle.Size = UDim2.new(1,-20,0,60)
-mainTitle.Position = UDim2.new(0,10,0,y)
-mainTitle.BackgroundTransparency = 1
-mainTitle.Text = "狀態"
-mainTitle.Font = Enum.Font.SourceSansBold
-mainTitle.TextColor3 = Color3.fromRGB(255,255,255)
-mainTitle.TextXAlignment = Enum.TextXAlignment.Center
-mainTitle.TextYAlignment = Enum.TextYAlignment.Center
-mainTitle.TextSize = 40      -- ★★★ 在這裡改字大小 ★★★
-mainTitle.Parent = contentFrame
+elseif index == 4 then
+    local y = 10
+    -- ===== 彩虹大標題 =====
+    local mainTitle = Instance.new("TextLabel")
+    mainTitle.Size = UDim2.new(1,-20,0,60)
+    mainTitle.Position = UDim2.new(0,10,0,y)
+    mainTitle.BackgroundTransparency = 1
+    mainTitle.Text = "狀態"
+    mainTitle.Font = Enum.Font.SourceSansBold
+    mainTitle.TextColor3 = Color3.fromRGB(255,255,255)
+    mainTitle.TextXAlignment = Enum.TextXAlignment.Center
+    mainTitle.TextYAlignment = Enum.TextYAlignment.Center
+    mainTitle.TextSize = 40
+    mainTitle.Parent = contentFrame
 
--- 彩虹效果
-local hue = 0
-RunService.RenderStepped:Connect(function(dt)
-    hue = (hue + dt/2) % 1
-    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+    -- 彩虹效果
+    local hue = 0
+    RunService.RenderStepped:Connect(function(dt)
+        hue = (hue + dt/2) % 1
+        mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+    end)
+
+    y = y + 60 -- 下一個選項的 y 位置
+
+-- ================= ServerInfoGUI (貼齊左右 + 圓角 + 灰色) =================
+local frame = Instance.new("Frame", contentFrame)
+frame.Size = UDim2.new(1, 0, 0, 375) -- 寬度 100% 貼齊左右
+frame.Position = UDim2.new(0, 0, 0, y)
+frame.BackgroundColor3 = Color3.fromRGB(100,100,100) -- 灰色
+frame.BorderSizePixel = 0
+
+-- 圓角
+local uicorner = Instance.new("UICorner", frame)
+uicorner.CornerRadius = UDim.new(0, 20) -- 20 像素圓角，可調整
+
+local function createLabel(yPos)
+    local l = Instance.new("TextLabel", frame)
+    l.Size = UDim2.new(1, -30, 0, 38) -- 左右留點邊距
+    l.Position = UDim2.new(0, 15, 0, yPos)
+    l.BackgroundTransparency = 1
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.Font = Enum.Font.SourceSans
+    l.TextSize = 25
+    l.TextColor3 = Color3.new(1,1,1)
+    return l
+end
+
+local playerLabel = createLabel(50)
+local timeLabel = createLabel(95)
+-- local playtimeLabel = createLabel(140) -- 移除遊玩時間
+local pingLabel = createLabel(140) -- 調整位置，把 Ping 往上移
+local placeLabel = createLabel(185) -- 也往上移
+placeLabel.Text = "PlaceId: "..game.PlaceId
+
+-- 複製按鈕
+local copyBtn = Instance.new("TextButton", frame)
+copyBtn.Size = UDim2.new(0, 90, 0, 33)
+copyBtn.Position = UDim2.new(1, -105, 0, 190) -- 調整位置
+copyBtn.Text = "Copy"
+copyBtn.Font = Enum.Font.SourceSansBold
+copyBtn.TextSize = 20
+copyBtn.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(tostring(game.PlaceId))
+    end
 end)
 
-y = y + 60 -- 下一個選項的 y 位置
+-- 輸入框 + Join 按鈕
+local inputBox = Instance.new("TextBox", frame)
+inputBox.Size = UDim2.new(1, -220, 0, 38)
+inputBox.Position = UDim2.new(0, 15, 0, 235)
+inputBox.PlaceholderText = "Enter PlaceId..."
+inputBox.ClearTextOnFocus = false
+inputBox.Font = Enum.Font.SourceSans
+inputBox.TextSize = 25
+
+local joinBtn = Instance.new("TextButton", frame)
+joinBtn.Size = UDim2.new(0, 90, 0, 38)
+joinBtn.Position = UDim2.new(1, -105, 0, 235)
+joinBtn.Text = "Join"
+joinBtn.Font = Enum.Font.SourceSansBold
+joinBtn.TextSize = 20
+joinBtn.MouseButton1Click:Connect(function()
+    local id = tonumber(inputBox.Text)
+    if id and id == game.PlaceId then
+        game:GetService("TeleportService"):Teleport(id, game.Players.LocalPlayer)
+    end
+end)
+
+-- ================= Drag Function =================
+local dragging, dragStart, startPos
+frame.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = i.Position
+        startPos = frame.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(i)
+    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = i.Position - dragStart
+        frame.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+UserInputService.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- ================= Update =================
+local joinTime = tick()
+RunService.RenderStepped:Connect(function()
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    -- 玩家數
+    playerLabel.Text = string.format("Players: %d / %d", #Players:GetPlayers(), Players.MaxPlayers)
+    
+    -- 本地時間
+    local t = os.date("*t")
+    timeLabel.Text = string.format("Local Time: %02d:%02d:%02d", t.hour, t.min, t.sec)
+    
+    -- Ping
+    local ping = LocalPlayer:GetNetworkPing() * 1000
+    pingLabel.Text = string.format("Ping: %.0f ms", ping)
+end)
 
             elseif index == 5 then
                     local y = 10
