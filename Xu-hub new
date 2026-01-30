@@ -718,48 +718,63 @@ end)
 
 y = y + 60 -- 下一個選項的 y 位置
 
-                    createOptionRow(contentFrame, y, "低配模式", function(row)
-            local switchBg = Instance.new("Frame")
-            switchBg.Size = UDim2.new(0,60,0.5,0)
-            switchBg.Position = UDim2.new(1,-70,0.25,0)
-            switchBg.BackgroundColor3 = LOWGRAPHICS_ENABLED and Color3.fromRGB(0,200,0)
-                or Color3.fromRGB(100,100,100)
-            switchBg.Parent = row
-            
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0,10)
-            corner.Parent = switchBg
+createOptionRow(contentFrame, y, "低配模式", function(row)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 40, 0.7, 0) -- 小一點
+    button.Position = UDim2.new(1, -70, 0.15, 0) -- 垂直置中
+    button.BackgroundTransparency = 1 -- 背景透明
+    button.Text = "◉"
+    button.TextScaled = true
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.SourceSansBold
+    button.Parent = row
 
-            local knob = Instance.new("Frame")
-            knob.Size = UDim2.new(0,26,1,-8)
-            knob.Position = LOWGRAPHICS_ENABLED and UDim2.new(1,-30,0,4)
-                or UDim2.new(0,4,0,4)
-            knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-            knob.Parent = switchBg
+    local clicked = false
 
-            local knobCorner = Instance.new("UICorner")
-            knobCorner.CornerRadius = UDim.new(0,8)
-            knobCorner.Parent = knob
+    button.MouseButton1Click:Connect(function()
+        if clicked then return end
+        clicked = true
 
-            switchBg.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    LOWGRAPHICS_ENABLED = not LOWGRAPHICS_ENABLED
-                    ApplyLowGraphics(LOWGRAPHICS_ENABLED)
+        local tweenService = game:GetService("TweenService")
 
-                    switchBg.BackgroundColor3 = LOWGRAPHICS_ENABLED 
-                        and Color3.fromRGB(0,200,0)
-                        or Color3.fromRGB(100,100,100)
+        -- 縮放動畫 (按下效果)
+        local shrinkInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local shrinkGoal = {Size = UDim2.new(0, 30, 0.7, 0)}
+        local growGoal = {Size = UDim2.new(0, 40, 0.7, 0)}
 
-                    knob:TweenPosition(
-                        LOWGRAPHICS_ENABLED and UDim2.new(1,-30,0,4)
-                        or UDim2.new(0,4,0,4),
-                        "Out","Quad",0.2,true
-                    )
-                end
-            end)
+        local shrinkTween = tweenService:Create(button, shrinkInfo, shrinkGoal)
+        local growTween = tweenService:Create(button, shrinkInfo, growGoal)
+
+        shrinkTween:Play()
+        shrinkTween.Completed:Connect(function()
+            growTween:Play()
         end)
 
-         y = y + 60
+        -- 閃光效果 (文字顏色快速變亮再恢復)
+        local flashInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local flashGoal = {TextColor3 = Color3.fromRGB(255, 255, 0)}
+        local restoreGoal = {TextColor3 = Color3.fromRGB(255, 255, 255)}
+
+        local flashTween = tweenService:Create(button, flashInfo, flashGoal)
+        local restoreTween = tweenService:Create(button, flashInfo, restoreGoal)
+
+        flashTween:Play()
+        flashTween.Completed:Connect(function()
+            restoreTween:Play()
+        end)
+
+        -- 按下後立即禁用再次點擊，文字半透明
+        button.TextColor3 = Color3.fromRGB(150, 150, 150)
+        button.TextTransparency = 0.5
+
+        -- 延遲 3 秒套用低配模式
+        task.delay(1, function()
+            ApplyLowGraphics(true)
+        end)
+    end)
+end)
+
+y = y + 60
 
          -- ===== 彩虹大標題 =====
 local mainTitle = Instance.new("TextLabel")
