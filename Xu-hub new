@@ -1040,9 +1040,10 @@ y = y + 60 -- 下一個選項的 y 位置
                         if input.UserInputType == Enum.UserInputType.MouseButton1 then toggleSwitch() end
                     end)
                 end)
+				
                 y = y + 60
 
-                -- 攻擊距離滑條
+				                -- 攻擊距離滑條
                 createOptionRow(contentFrame, y, "攻擊距離:", function(row)
                     local inputBox = Instance.new("TextBox")
                     inputBox.Size = UDim2.new(0,80,0.6,0)
@@ -1107,7 +1108,9 @@ y = y + 60 -- 下一個選項的 y 位置
                         end
                     end)
                 end)
+
                 y = y + 60
+
         -- ===== 免控旋轉滑動開關 =====
         createOptionRow(contentFrame, y, "移動速度", function(row)
             local switchBg = Instance.new("Frame")
