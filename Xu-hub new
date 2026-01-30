@@ -1152,6 +1152,75 @@ y = y + 60 -- 下一個選項的 y 位置
 
         y = y + 60
 
+createOptionRow(contentFrame, y, "速度調整:", function(row)
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0,80,0.6,0)
+    inputBox.Position = UDim2.new(0,130,0.2,0)
+    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+    inputBox.TextScaled = true
+    inputBox.ClearTextOnFocus = false
+    inputBox.Text = tostring(SLIDE_MAGNITUDE)
+    inputBox.Parent = row
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,200,0.3,0)
+    slider.Position = UDim2.new(0,220,0.35,0)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = row
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(SLIDE_MAGNITUDE/1000,0,1,0) -- 假設最大速度 1000
+    fill.BackgroundColor3 = Color3.fromRGB(0,200,255)
+    fill.Parent = slider
+
+    local maxLabel = Instance.new("TextLabel")
+    maxLabel.Size = UDim2.new(0,80,1,0)
+    maxLabel.Position = UDim2.new(0,430,0,0)
+    maxLabel.BackgroundTransparency = 1
+    maxLabel.Text = "(max:1000)"
+    maxLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    maxLabel.TextScaled = true
+    maxLabel.TextXAlignment = Enum.TextXAlignment.Left
+    maxLabel.Parent = row
+
+    local dragging = false
+    local MAX_SPEED = 1000
+
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    slider.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mouseX = input.Position.X - slider.AbsolutePosition.X
+            mouseX = math.clamp(mouseX,0,slider.AbsoluteSize.X)
+            local speed = (mouseX/slider.AbsoluteSize.X)*MAX_SPEED
+            SLIDE_MAGNITUDE = speed
+            inputBox.Text = tostring(math.floor(speed))
+            fill.Size = UDim2.new(mouseX/slider.AbsoluteSize.X,0,1,0)
+        end
+    end)
+
+    inputBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            local val = tonumber(inputBox.Text)
+            if val then
+                local speed = math.clamp(val,0,MAX_SPEED)
+                SLIDE_MAGNITUDE = speed
+                inputBox.Text = tostring(math.floor(speed))
+                fill.Size = UDim2.new(speed/MAX_SPEED,0,1,0)
+            else
+                inputBox.Text = tostring(math.floor(SLIDE_MAGNITUDE))
+            end
+        end
+    end)
+end)
+
+y = y + 60
+
             elseif index == 6 then
                     local y = 10
 -- ===== 彩虹大標題 =====
