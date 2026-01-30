@@ -720,9 +720,9 @@ y = y + 60 -- 下一個選項的 y 位置
 
 createOptionRow(contentFrame, y, "低配模式", function(row)
     local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0, 40, 0.7, 0) -- 小一點
-    button.Position = UDim2.new(1, -70, 0.15, 0) -- 垂直置中
-    button.BackgroundTransparency = 1 -- 背景透明
+    button.Size = UDim2.new(0, 40, 0.7, 0) 
+    button.Position = UDim2.new(1, -70, 0.15, 0) 
+    button.BackgroundTransparency = 1 
     button.Text = "◉"
     button.TextScaled = true
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -734,40 +734,27 @@ createOptionRow(contentFrame, y, "低配模式", function(row)
     button.MouseButton1Click:Connect(function()
         if clicked then return end
         clicked = true
-
         local tweenService = game:GetService("TweenService")
-
-        -- 縮放動畫 (按下效果)
         local shrinkInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         local shrinkGoal = {Size = UDim2.new(0, 30, 0.7, 0)}
         local growGoal = {Size = UDim2.new(0, 40, 0.7, 0)}
-
         local shrinkTween = tweenService:Create(button, shrinkInfo, shrinkGoal)
         local growTween = tweenService:Create(button, shrinkInfo, growGoal)
-
         shrinkTween:Play()
         shrinkTween.Completed:Connect(function()
             growTween:Play()
         end)
-
-        -- 閃光效果 (文字顏色快速變亮再恢復)
         local flashInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         local flashGoal = {TextColor3 = Color3.fromRGB(255, 255, 0)}
         local restoreGoal = {TextColor3 = Color3.fromRGB(255, 255, 255)}
-
         local flashTween = tweenService:Create(button, flashInfo, flashGoal)
         local restoreTween = tweenService:Create(button, flashInfo, restoreGoal)
-
         flashTween:Play()
         flashTween.Completed:Connect(function()
             restoreTween:Play()
         end)
-
-        -- 按下後立即禁用再次點擊，文字半透明
         button.TextColor3 = Color3.fromRGB(150, 150, 150)
         button.TextTransparency = 0.5
-
-        -- 延遲 3 秒套用低配模式
         task.delay(1, function()
             ApplyLowGraphics(true)
         end)
@@ -825,156 +812,154 @@ end)
 
 y = y + 60 -- 下一個選項的 y 位置
 
-        -- ===== Hop Server =====
-            createOptionRow(contentFrame, y, "Hop Server", function(row)
-                local switchBg = Instance.new("Frame")
-                switchBg.Size = UDim2.new(0,60,0.5,0)
-                switchBg.Position = UDim2.new(1,-70,0.25,0)
-                switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
-                switchBg.BorderSizePixel = 0
-                switchBg.Parent = row
-                Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+-- ===== Hop Server =====
+createOptionRow(contentFrame, y, "切換伺服器(無反應)", function(row)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 40, 0.7, 0)
+    button.Position = UDim2.new(1, -70, 0.15, 0)
+    button.BackgroundTransparency = 1
+    button.Text = "◉"
+    button.TextScaled = true
+    button.TextColor3 = Color3.fromRGB(255,255,255)
+    button.Font = Enum.Font.SourceSansBold
+    button.Parent = row
 
-                local knob = Instance.new("Frame")
-                knob.Size = UDim2.new(0,28,1,0)
-                knob.Position = UDim2.new(0,0,0,0)
-                knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-                knob.BorderSizePixel = 0
-                knob.Parent = switchBg
-                Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+    local tweenService = game:GetService("TweenService")
+    local player = game.Players.LocalPlayer
+    local HttpService = game:GetService("HttpService")
+    local TeleportService = game:GetService("TeleportService")
+    local PlaceId = game.PlaceId
 
-        local function toggle()
-                knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
-                switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
+    button.MouseButton1Click:Connect(function()
+        -- 動畫
+        local shrinkTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,30,0.7,0)})
+        local growTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,40,0.7,0)})
+        shrinkTween:Play()
+        shrinkTween.Completed:Connect(function() growTween:Play() end)
 
-                task.spawn(function()
-                    local HttpService = game:GetService("HttpService")
-                    local TeleportService = game:GetService("TeleportService")
-                    local PlaceId = game.PlaceId
-                    local player = game.Players.LocalPlayer
+        local flashTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,0)})
+        local restoreTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,255)})
+        flashTween:Play()
+        flashTween.Completed:Connect(function() restoreTween:Play() end)
 
-                    local AllServers = {}
-                    local cursor = ""
+        -- 功能
+        task.spawn(function()
+            local AllServers = {}
+            local cursor = ""
 
-                    -- 取得所有伺服器
-                    repeat
-                        local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?limit=100"
-                        if cursor ~= "" then
-                            url = url.."&cursor="..cursor
-                        end
-                        local success, response = pcall(function()
-                            return HttpService:JSONDecode(game:HttpGet(url))
-                        end)
-                        if success and response and response.data then
-                            for _, s in ipairs(response.data) do
-                                if s.id ~= game.JobId and s.playing < s.maxPlayers then
-                                    table.insert(AllServers, s)
-                                end
-                            end
-                            cursor = response.nextPageCursor or ""
-                        else
-                            cursor = ""
-                        end
-                    until cursor == ""
-
-                    if #AllServers == 0 then return end
-
-                    -- 找玩家數最少的伺服器
-                    table.sort(AllServers, function(a,b) return a.playing < b.playing end)
-                    local lowestPlayerServer = AllServers[1]
-
-                    TeleportService:TeleportToPlaceInstance(PlaceId, lowestPlayerServer.id, player)
+            repeat
+                local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?limit=100"
+                if cursor ~= "" then url = url.."&cursor="..cursor end
+                local success, response = pcall(function()
+                    return HttpService:JSONDecode(game:HttpGet(url))
                 end)
-            end
+                if success and response and response.data then
+                    for _, s in ipairs(response.data) do
+                        if s.id ~= game.JobId and s.playing < s.maxPlayers then
+                            table.insert(AllServers, s)
+                        end
+                    end
+                    cursor = response.nextPageCursor or ""
+                else
+                    cursor = ""
+                end
+            until cursor == ""
 
-            switchBg.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then toggle() end
-            end)
+            if #AllServers == 0 then return end
+
+            table.sort(AllServers, function(a,b) return a.playing < b.playing end)
+            TeleportService:TeleportToPlaceInstance(PlaceId, AllServers[1].id, player)
         end)
+    end)
+end)
 
-            y = y + 60
+y = y + 60
 
-            -- ===== Rejoin =====
-            createOptionRow(contentFrame, y, "Rejoin", function(row)
-                local switchBg = Instance.new("Frame")
-                switchBg.Size = UDim2.new(0,60,0.5,0)
-                switchBg.Position = UDim2.new(1,-70,0.25,0)
-                switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
-                switchBg.BorderSizePixel = 0
-                switchBg.Parent = row
-                Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+-- ===== Rejoin =====
+createOptionRow(contentFrame, y, "重進伺服器", function(row)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 40, 0.7, 0)
+    button.Position = UDim2.new(1, -70, 0.15, 0)
+    button.BackgroundTransparency = 1
+    button.Text = "◉"
+    button.TextScaled = true
+    button.TextColor3 = Color3.fromRGB(255,255,255)
+    button.Font = Enum.Font.SourceSansBold
+    button.Parent = row
 
-                local knob = Instance.new("Frame")
-                knob.Size = UDim2.new(0,28,1,0)
-                knob.Position = UDim2.new(0,0,0,0)
-                knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-                knob.BorderSizePixel = 0
-                knob.Parent = switchBg
-                Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+    local tweenService = game:GetService("TweenService")
+    local player = game.Players.LocalPlayer
+    local TeleportService = game:GetService("TeleportService")
 
-                local function toggle()
-                    knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
-                    switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
-                    task.spawn(function()
-                        local TeleportService = game:GetService("TeleportService")
-                        TeleportService:Teleport(game.PlaceId, player)
-                    end)
-                end
+    button.MouseButton1Click:Connect(function()
+        local shrinkTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,30,0.7,0)})
+        local growTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,40,0.7,0)})
+        shrinkTween:Play()
+        shrinkTween.Completed:Connect(function() growTween:Play() end)
 
-                switchBg.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then toggle() end
-                end)
+        local flashTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,0)})
+        local restoreTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,255)})
+        flashTween:Play()
+        flashTween.Completed:Connect(function() restoreTween:Play() end)
+
+        task.spawn(function()
+            TeleportService:Teleport(game.PlaceId, player)
+        end)
+    end)
+end)
+
+y = y + 60
+
+-- ===== Join Low Player Server =====
+createOptionRow(contentFrame, y, "加入到少人伺服器", function(row)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 40, 0.7, 0)
+    button.Position = UDim2.new(1, -70, 0.15, 0)
+    button.BackgroundTransparency = 1
+    button.Text = "◉"
+    button.TextScaled = true
+    button.TextColor3 = Color3.fromRGB(255,255,255)
+    button.Font = Enum.Font.SourceSansBold
+    button.Parent = row
+
+    local tweenService = game:GetService("TweenService")
+    local player = game.Players.LocalPlayer
+    local TeleportService = game:GetService("TeleportService")
+    local HttpService = game:GetService("HttpService")
+    local PlaceId = game.PlaceId
+
+    button.MouseButton1Click:Connect(function()
+        local shrinkTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,30,0.7,0)})
+        local growTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,40,0.7,0)})
+        shrinkTween:Play()
+        shrinkTween.Completed:Connect(function() growTween:Play() end)
+
+        local flashTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,0)})
+        local restoreTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,255)})
+        flashTween:Play()
+        flashTween.Completed:Connect(function() restoreTween:Play() end)
+
+        task.spawn(function()
+            local AllServers = {}
+            local success, servers = pcall(function()
+                return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
             end)
-            y = y + 60
-            
-            -- ===== Join Low Player Server =====
-        createOptionRow(contentFrame, y, "Join Low Player Server", function(row)
-            local switchBg = Instance.new("Frame")
-            switchBg.Size = UDim2.new(0,60,0.5,0)
-            switchBg.Position = UDim2.new(1,-70,0.25,0)
-            switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
-            switchBg.BorderSizePixel = 0
-            switchBg.Parent = row
-            Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
-
-            local knob = Instance.new("Frame")
-            knob.Size = UDim2.new(0,28,1,0)
-            knob.Position = UDim2.new(0,0,0,0)
-            knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-            knob.BorderSizePixel = 0
-            knob.Parent = switchBg
-            Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
-
-            local function toggle()
-                    knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
-                    switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
-                    task.spawn(function()
-                        local TeleportService = game:GetService("TeleportService")
-                        local PlaceId = game.PlaceId
-                        local AllServers = {} -- 暫存
-                        local success, servers = pcall(function()
-                            return game:GetService("HttpService"):JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
-                        end)
-                        if success and servers and servers.data then
-                            for _, s in ipairs(servers.data) do
-                                if s.id ~= game.JobId and s.playing < s.maxPlayers then
-                                    table.insert(AllServers, s.id)
-                                end
-                            end
-                        end
-                        if #AllServers > 0 then
-                            local randId = AllServers[math.random(1,#AllServers)]
-                            TeleportService:TeleportToPlaceInstance(PlaceId, randId, player)
-                        end
-                    end)
+            if success and servers and servers.data then
+                for _, s in ipairs(servers.data) do
+                    if s.id ~= game.JobId and s.playing < s.maxPlayers then
+                        table.insert(AllServers, s.id)
+                    end
                 end
+            end
+            if #AllServers > 0 then
+                local randId = AllServers[math.random(1,#AllServers)]
+                TeleportService:TeleportToPlaceInstance(PlaceId, randId, player)
+            end
+        end)
+    end)
+end)
 
-                switchBg.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then toggle() end
-                end)
-            end)
-
-        y = y + 60
+y = y + 60
 
             elseif index == 4 then
                     local y = 10
