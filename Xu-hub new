@@ -30,18 +30,21 @@
         local EnemiesFolder = workspace:WaitForChild("Enemies")
         local CharactersFolder = workspace:WaitForChild("Characters")
 
--- ================= 免控滑行核心（無旋轉） =================
-local SLIDE_MAGNITUDE = 350
-local JUMP_HEIGHT = 100
+-- ================= 核心參數 =================
+local SLIDE_MAGNITUDE = 350  -- 初始速度
+local ACCELERATION = 12      -- 加速
+local DECELERATION = 18      -- 減速
+local MAX_SPEED = 1000       -- 速度上限
 
 local moving = false
 local moveConn
-local moveKeys = {W=false,A=false,S=false,D=false}
-local jumpHold = false
+local moveKeys = {W=false, A=false, S=false, D=false}
+local currentVelocity = Vector3.zero
 
 local player = Players.LocalPlayer
 local character, root, humanoid
 
+-- ================= 核心函數 =================
 local function setupCharacter(char)
     character = char
     root = char:WaitForChild("HumanoidRootPart")
@@ -50,14 +53,13 @@ end
 setupCharacter(player.Character or player.CharacterAdded:Wait())
 player.CharacterAdded:Connect(setupCharacter)
 
--- WASD / Jump
+-- WASD
 UserInputService.InputBegan:Connect(function(input,gpe)
     if gpe then return end
     if input.KeyCode==Enum.KeyCode.W then moveKeys.W=true end
     if input.KeyCode==Enum.KeyCode.A then moveKeys.A=true end
     if input.KeyCode==Enum.KeyCode.S then moveKeys.S=true end
     if input.KeyCode==Enum.KeyCode.D then moveKeys.D=true end
-    if input.KeyCode==Enum.KeyCode.Space then jumpHold=true end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
@@ -65,14 +67,16 @@ UserInputService.InputEnded:Connect(function(input)
     if input.KeyCode==Enum.KeyCode.A then moveKeys.A=false end
     if input.KeyCode==Enum.KeyCode.S then moveKeys.S=false end
     if input.KeyCode==Enum.KeyCode.D then moveKeys.D=false end
-    if input.KeyCode==Enum.KeyCode.Space then jumpHold=false end
 end)
 
+-- ================= 移動核心 =================
 local function startMove()
     if moving or not root then return end
     moving = true
 
     moveConn = RunService.RenderStepped:Connect(function(dt)
+        if not root then return end
+
         local cam = Workspace.CurrentCamera
         local look = Vector3.new(cam.CFrame.LookVector.X,0,cam.CFrame.LookVector.Z)
         local right = Vector3.new(cam.CFrame.RightVector.X,0,cam.CFrame.RightVector.Z)
@@ -84,11 +88,15 @@ local function startMove()
         if moveKeys.D then dir += right end
         if dir.Magnitude > 0 then dir = dir.Unit end
 
-        local delta = dir * SLIDE_MAGNITUDE * dt
-        if jumpHold then
-            delta += Vector3.new(0, JUMP_HEIGHT * dt, 0)
-        end
-        root.CFrame = root.CFrame + delta
+        -- 目標速度
+        local targetVelocity = dir * SLIDE_MAGNITUDE
+
+        -- 平滑速度
+        local lerpSpeed = dir.Magnitude > 0 and ACCELERATION or DECELERATION
+        currentVelocity = currentVelocity:Lerp(targetVelocity, math.clamp(lerpSpeed*dt,0,1))
+
+        -- 只水平移動（無跳躍）
+        root.CFrame += Vector3.new(currentVelocity.X, 0, currentVelocity.Z) * dt
     end)
 end
 
@@ -450,7 +458,7 @@ Scripts["自動v3"] = {
                 task.wait(0.01)
                 -- 放開 T
                 VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.T, false, game)
-                task.wait(0.5)
+                task.wait(0.1)
             end
         end)
     end,
@@ -460,7 +468,31 @@ Scripts["自動v3"] = {
         self._conn = nil
     end
 }
-        
+-- ================= 核心邏輯 =================
+local JumpSettings = {
+    Enabled = false,
+    JumpPower = 50, -- 初始跳躍高度
+    MaxJumpPower = 500
+}
+
+local function updateJumpPower(player)
+    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        if humanoid.UseJumpPower then
+            humanoid.JumpPower = JumpSettings.Enabled and JumpSettings.JumpPower or 50
+        else
+            humanoid.JumpHeight = JumpSettings.Enabled and JumpSettings.JumpPower or 7.2 -- 默認高度
+        end
+    end
+end
+
+-- 監聽角色刷新
+game.Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        updateJumpPower(player)
+    end)
+end)
+
         -- ===== Xu-hub UI =====
         local screenGui = Instance.new("ScreenGui")
         screenGui.Parent = PlayerGui
@@ -903,6 +935,225 @@ end)
 
         y = y + 60
 
+createOptionRow(contentFrame, y, "移動速度", function(row)
+    local enabled = false
+
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0,60,0.5,0)
+    switchBg.Position = UDim2.new(1,-70,0.25,0)
+    switchBg.BackgroundColor3 = enabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,28,1,0)
+    knob.Position = enabled and UDim2.new(1,-28,0,0) or UDim2.new(0,0,0,0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+
+    local function toggle()
+        enabled = not enabled
+        toggleMove(enabled)
+        if enabled then
+            knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
+        else
+            knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+        end
+    end
+
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then toggle() end
+    end)
+end)
+y += 60
+
+-- 速度調整
+createOptionRow(contentFrame, y, "速度調整:", function(row)
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0,80,0.6,0)
+    inputBox.Position = UDim2.new(0,130,0.2,0)
+    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+    inputBox.TextScaled = true
+    inputBox.ClearTextOnFocus = false
+    inputBox.Text = tostring(SLIDE_MAGNITUDE)
+    inputBox.Parent = row
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,200,0.3,0)
+    slider.Position = UDim2.new(0,220,0.35,0)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = row
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(SLIDE_MAGNITUDE/MAX_SPEED,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(0,200,255)
+    fill.Parent = slider
+
+                    local maxLabel = Instance.new("TextLabel")
+                    maxLabel.Size = UDim2.new(0,80,1,0)
+                    maxLabel.Position = UDim2.new(0,430,0,0)
+                    maxLabel.BackgroundTransparency = 1
+                    maxLabel.Text = "(max:1000)"
+                    maxLabel.TextColor3 = Color3.fromRGB(200,200,200)
+                    maxLabel.TextScaled = true
+                    maxLabel.TextXAlignment = Enum.TextXAlignment.Left
+                    maxLabel.Parent = row
+
+    local dragging = false
+
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    slider.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mouseX = input.Position.X - slider.AbsolutePosition.X
+            mouseX = math.clamp(mouseX,0,slider.AbsoluteSize.X)
+            local speed = (mouseX/slider.AbsoluteSize.X)*MAX_SPEED
+            SLIDE_MAGNITUDE = speed
+            inputBox.Text = tostring(math.floor(speed))
+            fill.Size = UDim2.new(mouseX/slider.AbsoluteSize.X,0,1,0)
+        end
+    end)
+
+    inputBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            local val = tonumber(inputBox.Text)
+            if val then
+                SLIDE_MAGNITUDE = math.clamp(val,0,MAX_SPEED)
+                inputBox.Text = tostring(math.floor(SLIDE_MAGNITUDE))
+                fill.Size = UDim2.new(SLIDE_MAGNITUDE/MAX_SPEED,0,1,0)
+            else
+                inputBox.Text = tostring(math.floor(SLIDE_MAGNITUDE))
+            end
+        end
+    end)
+end)
+
+ y = y + 60
+
+-- ================= 跳躍開關 (帶滑動動畫) =================
+createOptionRow(contentFrame, y, "跳躍開關", function(row)
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0,60,0.5,0)
+    switchBg.Position = UDim2.new(1,-70,0.25,0)
+    switchBg.BackgroundColor3 = JumpSettings.Enabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,28,1,0)
+    knob.Position = JumpSettings.Enabled and UDim2.new(1,-28,0,0) or UDim2.new(0,0,0,0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+
+    local TweenService = game:GetService("TweenService")
+    
+    local function toggleSwitch()
+        JumpSettings.Enabled = not JumpSettings.Enabled
+
+        -- 背景顏色動畫
+        local bgTween = TweenService:Create(switchBg, TweenInfo.new(0.2), {BackgroundColor3 = JumpSettings.Enabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)})
+        bgTween:Play()
+
+        -- knob 滑動動畫
+        local knobTween = TweenService:Create(knob, TweenInfo.new(0.2), {Position = JumpSettings.Enabled and UDim2.new(1,-28,0,0) or UDim2.new(0,0,0,0)})
+        knobTween:Play()
+
+        -- 更新跳躍
+        updateJumpPower(game.Players.LocalPlayer)
+    end
+
+    -- 點擊切換
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggleSwitch()
+        end
+    end)
+end)
+
+y = y + 60
+
+-- 滑桿控制跳躍高度
+createOptionRow(contentFrame, y, "跳躍高度", function(row)
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0,80,0.6,0)
+    inputBox.Position = UDim2.new(0,130,0.2,0)
+    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+    inputBox.TextScaled = true
+    inputBox.ClearTextOnFocus = false
+    inputBox.Text = tostring(JumpSettings.JumpPower)
+    inputBox.Parent = row
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,200,0.3,0)
+    slider.Position = UDim2.new(0,220,0.35,0)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = row
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(JumpSettings.JumpPower/JumpSettings.MaxJumpPower,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(255,200,0)
+    fill.Parent = slider
+
+    local maxLabel = Instance.new("TextLabel")
+    maxLabel.Size = UDim2.new(0,80,1,0)
+    maxLabel.Position = UDim2.new(0,430,0,0)
+    maxLabel.BackgroundTransparency = 1
+    maxLabel.Text = "(max:500)"
+    maxLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    maxLabel.TextScaled = true
+    maxLabel.TextXAlignment = Enum.TextXAlignment.Left
+    maxLabel.Parent = row
+
+    -- 滑桿拖曳
+    local dragging = false
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    slider.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local relativeX = math.clamp(input.Position.X - slider.AbsolutePosition.X, 0, slider.AbsoluteSize.X)
+            JumpSettings.JumpPower = math.floor((relativeX / slider.AbsoluteSize.X) * JumpSettings.MaxJumpPower)
+            fill.Size = UDim2.new(JumpSettings.JumpPower/JumpSettings.MaxJumpPower,0,1,0)
+            inputBox.Text = tostring(JumpSettings.JumpPower)
+            updateJumpPower(game.Players.LocalPlayer)
+        end
+    end)
+    -- 文字框直接輸入
+    inputBox.FocusLost:Connect(function()
+        local val = tonumber(inputBox.Text)
+        if val then
+            JumpSettings.JumpPower = math.clamp(val,0,JumpSettings.MaxJumpPower)
+            fill.Size = UDim2.new(JumpSettings.JumpPower/JumpSettings.MaxJumpPower,0,1,0)
+            updateJumpPower(game.Players.LocalPlayer)
+        else
+            inputBox.Text = tostring(JumpSettings.JumpPower)
+        end
+    end)
+end)
+
+y = y + 60
+
         elseif index == 3 then
                     local y = 10
 -- ===== 彩虹大標題 =====
@@ -1233,119 +1484,6 @@ y = y + 60 -- 下一個選項的 y 位置
                 end)
 
                 y = y + 60
-
-        -- ===== 免控旋轉滑動開關 =====
-        createOptionRow(contentFrame, y, "移動速度", function(row)
-            local switchBg = Instance.new("Frame")
-            switchBg.Size = UDim2.new(0,60,0.5,0)
-            switchBg.Position = UDim2.new(1,-70,0.25,0)
-            switchBg.BackgroundColor3 = rotating and Color3.fromRGB(0,200,0)
-                or Color3.fromRGB(100,100,100)
-            switchBg.BorderSizePixel = 0
-            switchBg.Parent = row
-            Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
-
-            local knob = Instance.new("Frame")
-            knob.Size = UDim2.new(0,28,1,0)
-            knob.Position = rotating
-                and UDim2.new(1,-28,0,0)
-                or UDim2.new(0,0,0,0)
-            knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-            knob.BorderSizePixel = 0
-            knob.Parent = switchBg
-            Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
-
-            local enabled = rotating
-            local function toggle()
-                enabled = not enabled
-			toggleMove(enabled)
-
-                if enabled then
-                    knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
-                    switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
-                else
-                    knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
-                    switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
-                end
-            end
-
-            switchBg.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    toggle()
-                end
-            end)
-        end)
-
-        y = y + 60
-
-createOptionRow(contentFrame, y, "速度調整:", function(row)
-    local inputBox = Instance.new("TextBox")
-    inputBox.Size = UDim2.new(0,80,0.6,0)
-    inputBox.Position = UDim2.new(0,130,0.2,0)
-    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
-    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
-    inputBox.TextScaled = true
-    inputBox.ClearTextOnFocus = false
-    inputBox.Text = tostring(SLIDE_MAGNITUDE)
-    inputBox.Parent = row
-
-    local slider = Instance.new("Frame")
-    slider.Size = UDim2.new(0,200,0.3,0)
-    slider.Position = UDim2.new(0,220,0.35,0)
-    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
-    slider.Parent = row
-
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.new(SLIDE_MAGNITUDE/1000,0,1,0) -- 假設最大速度 1000
-    fill.BackgroundColor3 = Color3.fromRGB(0,200,255)
-    fill.Parent = slider
-
-    local maxLabel = Instance.new("TextLabel")
-    maxLabel.Size = UDim2.new(0,80,1,0)
-    maxLabel.Position = UDim2.new(0,430,0,0)
-    maxLabel.BackgroundTransparency = 1
-    maxLabel.Text = "(max:1000)"
-    maxLabel.TextColor3 = Color3.fromRGB(200,200,200)
-    maxLabel.TextScaled = true
-    maxLabel.TextXAlignment = Enum.TextXAlignment.Left
-    maxLabel.Parent = row
-
-    local dragging = false
-    local MAX_SPEED = 1000
-
-    slider.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
-    end)
-    slider.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-    end)
-    slider.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local mouseX = input.Position.X - slider.AbsolutePosition.X
-            mouseX = math.clamp(mouseX,0,slider.AbsoluteSize.X)
-            local speed = (mouseX/slider.AbsoluteSize.X)*MAX_SPEED
-            SLIDE_MAGNITUDE = speed
-            inputBox.Text = tostring(math.floor(speed))
-            fill.Size = UDim2.new(mouseX/slider.AbsoluteSize.X,0,1,0)
-        end
-    end)
-
-    inputBox.FocusLost:Connect(function(enterPressed)
-        if enterPressed then
-            local val = tonumber(inputBox.Text)
-            if val then
-                local speed = math.clamp(val,0,MAX_SPEED)
-                SLIDE_MAGNITUDE = speed
-                inputBox.Text = tostring(math.floor(speed))
-                fill.Size = UDim2.new(speed/MAX_SPEED,0,1,0)
-            else
-                inputBox.Text = tostring(math.floor(SLIDE_MAGNITUDE))
-            end
-        end
-    end)
-end)
-
-y = y + 60
 
             elseif index == 6 then
                     local y = 10
