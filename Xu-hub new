@@ -8,6 +8,7 @@
 
         local player = Players.LocalPlayer
         local PlayerGui = player:WaitForChild("PlayerGui")
+
 -- ===== 目標座標 =====
 local TARGET_CFRAME = CFrame.new(-285,309, 595)
 
@@ -33,7 +34,7 @@ local TARGET_CFRAME = CFrame.new(-285,309, 595)
         local CharactersFolder = workspace:WaitForChild("Characters")
 
 -- ================= 核心參數 =================
-local SLIDE_MAGNITUDE = 200  -- 初始速度
+local SLIDE_MAGNITUDE = 350  -- 初始速度
 local ACCELERATION = 12      -- 加速
 local DECELERATION = 18      -- 減速
 local MAX_SPEED = 1000       -- 速度上限
@@ -526,37 +527,10 @@ end)
 
 local FlyEnabled = false
 local TargetPlayer = nil
-local CurrentTween = nil
 local NoclipEnabled = false
 local FlyBV, FlyBG
 
--- Tween 到指定位置
-local function topos(cf)
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    local dist = (cf.Position - hrp.Position).Magnitude
-    local speed =
-        dist < 25  and 10000 or
-        dist < 50  and 2000  or
-        dist < 150 and 800   or
-        dist < 250 and 600   or
-        dist < 500 and 400   or
-        dist < 750 and 350   or
-        300
-
-    if CurrentTween then CurrentTween:Cancel() end
-
-    CurrentTween = TweenService:Create(
-        hrp,
-        TweenInfo.new(dist / speed, Enum.EasingStyle.Linear),
-        { CFrame = cf }
-    )
-    CurrentTween:Play()
-end
-
--- Fly 啟動
+-- ================== Fly 功能 ==================
 local function EnableFly()
     local char = LocalPlayer.Character
     if not char or FlyBV then return end
@@ -564,32 +538,28 @@ local function EnableFly()
     local hrp = char:WaitForChild("HumanoidRootPart")
     local hum = char:FindFirstChildOfClass("Humanoid")
 
+    -- BodyVelocity 控制速度
     FlyBV = Instance.new("BodyVelocity")
     FlyBV.MaxForce = Vector3.new(1e9,1e9,1e9)
     FlyBV.Velocity = Vector3.zero
     FlyBV.Parent = hrp
 
+    -- BodyGyro 控制方向
     FlyBG = Instance.new("BodyGyro")
     FlyBG.MaxTorque = Vector3.new(1e9,1e9,1e9)
     FlyBG.P = 50000
     FlyBG.CFrame = hrp.CFrame
     FlyBG.Parent = hrp
 
+    -- Humanoid 改成 Physics 狀態
     if hum then
         hum:ChangeState(Enum.HumanoidStateType.Physics)
     end
 end
 
--- Fly 停止
 local function DisableFly()
     if FlyBV then FlyBV:Destroy() FlyBV = nil end
     if FlyBG then FlyBG:Destroy() FlyBG = nil end
-
-    -- 停止 Tween
-    if CurrentTween then
-        CurrentTween:Cancel()
-        CurrentTween = nil
-    end
 
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -598,7 +568,7 @@ local function DisableFly()
     end
 end
 
--- Noclip
+-- ================== Noclip ==================
 RunService.Stepped:Connect(function()
     if NoclipEnabled then
         local char = LocalPlayer.Character
@@ -612,13 +582,47 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Fly 跟隨玩家
+-- ================== Fly 控制 ==================
 RunService.RenderStepped:Connect(function()
-    if FlyEnabled and TargetPlayer and TargetPlayer.Character then
-        local hrp = TargetPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            if FlyBV then FlyBV.Velocity = Vector3.zero end
-            topos(hrp.CFrame)
+    if FlyEnabled then
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp and FlyBV and FlyBG then
+            local velocity = Vector3.zero
+
+            -- 鍵盤控制（WASD 上下飛行）
+            local keys = {W=false, A=false, S=false, D=false, Space=false, LeftShift=false}
+            local UIS = game:GetService("UserInputService")
+            for k,v in pairs(keys) do
+                keys[k] = UIS:IsKeyDown(Enum.KeyCode[k])
+            end
+
+            local cam = workspace.CurrentCamera
+            if cam then
+                local forward = cam.CFrame.LookVector
+                local right = cam.CFrame.RightVector
+
+                if keys.W then velocity += forward end
+                if keys.S then velocity -= forward end
+                if keys.D then velocity += right end
+                if keys.A then velocity -= right end
+                if keys.Space then velocity += Vector3.new(0,1,0) end
+                if keys.LeftShift then velocity -= Vector3.new(0,1,0) end
+            end
+
+            velocity = velocity.Unit * (velocity.Magnitude > 0 and 200 or 0) -- 最大速度
+            FlyBV.Velocity = velocity
+            FlyBG.CFrame = CFrame.new(hrp.Position, hrp.Position + (velocity.Magnitude > 0 and velocity or hrp.CFrame.LookVector))
+        end
+
+        -- 如果有指定目標玩家，自動跟隨
+        if TargetPlayer and TargetPlayer.Character then
+            local targetHrp = TargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if targetHrp and FlyBV then
+                local direction = targetHrp.Position - hrp.Position
+                FlyBV.Velocity = direction.Unit * math.clamp(direction.Magnitude*10, 50, 300) + Vector3.new(0,5,0)
+                FlyBG.CFrame = CFrame.new(hrp.Position, targetHrp.Position)
+            end
         end
     end
 end)
@@ -1066,8 +1070,6 @@ end)
         y = y + 60
 
 createOptionRow(contentFrame, y, "移動速度", function(row)
-    local enabled = false
-
     local switchBg = Instance.new("Frame")
     switchBg.Size = UDim2.new(0,60,0.5,0)
     switchBg.Position = UDim2.new(1,-70,0.25,0)
@@ -1100,6 +1102,7 @@ createOptionRow(contentFrame, y, "移動速度", function(row)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then toggle() end
     end)
 end)
+
 y += 60
 
 -- 速度調整
