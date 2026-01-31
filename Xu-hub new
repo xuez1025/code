@@ -37,7 +37,7 @@ local TARGET_CFRAME4 = CFrame.new(-5060,317,-3193)
         local CharactersFolder = workspace:WaitForChild("Characters")
 
 -- ================= 核心參數 =================
-local SLIDE_MAGNITUDE = 350  -- 初始速度
+local SLIDE_MAGNITUDE = 200  -- 初始速度
 local ACCELERATION = 12      -- 加速
 local DECELERATION = 18      -- 減速
 local MAX_SPEED = 1000       -- 速度上限
@@ -563,6 +563,7 @@ RunService.RenderStepped:Connect(function()
         hrp.Velocity = direction * FlySpeed
     end
 end)
+
 
         -- ===== Xu-hub UI =====
         local screenGui = Instance.new("ScreenGui")
@@ -1938,6 +1939,28 @@ y = y + 60 -- 下一個選項的 y 位置
         end)
 
         y = y + 60
+
+         -- ===== 彩虹大標題 =====
+local mainTitle = Instance.new("TextLabel")
+mainTitle.Size = UDim2.new(1,-20,0,60)
+mainTitle.Position = UDim2.new(0,10,0,y)
+mainTitle.BackgroundTransparency = 1
+mainTitle.Text = "船隻速度"
+mainTitle.Font = Enum.Font.SourceSansBold
+mainTitle.TextColor3 = Color3.fromRGB(255,255,255)
+mainTitle.TextXAlignment = Enum.TextXAlignment.Center
+mainTitle.TextYAlignment = Enum.TextYAlignment.Center
+mainTitle.TextSize = 40      -- ★★★ 在這裡改字大小 ★★★
+mainTitle.Parent = contentFrame
+
+-- 彩虹效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+y = y + 60 -- 下一個選項的 y 位置
 
             elseif index == 7 then
                     local y = 10
