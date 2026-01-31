@@ -470,10 +470,39 @@ Scripts["自動v3"] = {
         self._conn = nil
     end
 }
+
+-- ===== v4核心 =====
+
+local Scripts = Scripts or {}
+
+Scripts["自動v4"] = {
+    Enabled = false,
+    _conn = nil,
+
+    Func = function(self)
+        local VirtualInputManager = game:GetService("VirtualInputManager")
+        if self._conn then return end
+        self._conn = task.spawn(function()
+            while self.Enabled do
+                -- 按下 Y
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Y, false, game)
+                task.wait(0.01)
+                -- 放開 Y
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Y, false, game)
+                task.wait(0.1)
+            end
+        end)
+    end,
+
+    StopFunc = function(self)
+        self.Enabled = false
+        self._conn = nil
+    end
+}
 -- ================= 核心邏輯 =================
 local JumpSettings = {
     Enabled = false,
-    JumpPower = 50, -- 初始跳躍高度
+    JumpPower = 100, -- 初始跳躍高度
     MaxJumpPower = 500
 }
 
@@ -2010,8 +2039,7 @@ createOptionRow(contentFrame, y, "race v3", function(row)
     knob.Parent = switchBg
     Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 20)
 
-    -- 點擊切換開關
-    local UIS = game:GetService("UserInputService")
+    -- 點擊切換開關（帶滑動動畫）
     switchBg.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             Scripts["自動v3"].Enabled = not Scripts["自動v3"].Enabled
@@ -2020,9 +2048,54 @@ createOptionRow(contentFrame, y, "race v3", function(row)
             else
                 Scripts["自動v3"]:StopFunc()
             end
-            -- 更新UI
+
+            -- 更新UI顏色
             switchBg.BackgroundColor3 = Scripts["自動v3"].Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
-            knob.Position = Scripts["自動v3"].Enabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
+
+            -- Tween 滑塊滑動
+            local targetPos = Scripts["自動v3"].Enabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
+            local tween = TweenService:Create(knob, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos})
+            tween:Play()
+        end
+    end)
+end)
+        y = y + 60
+
+createOptionRow(contentFrame, y, "race v4", function(row)
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0, 60, 0.5, 0)
+    switchBg.Position = UDim2.new(1, -70, 0.25, 0)
+    switchBg.BackgroundColor3 = Scripts["自動v4"].Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 28, 1, 0)
+    knob.Position = Scripts["自動v4"].Enabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 20)
+
+    -- 點擊切換開關（帶滑動動畫）
+    local UIS = game:GetService("UserInputService")
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            Scripts["自動v4"].Enabled = not Scripts["自動v4"].Enabled
+            if Scripts["自動v4"].Enabled then
+                Scripts["自動v4"]:Func()
+            else
+                Scripts["自動v4"]:StopFunc()
+            end
+
+            -- 更新UI顏色
+            switchBg.BackgroundColor3 = Scripts["自動v4"].Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
+
+            -- Tween 滑塊滑動
+            local targetPos = Scripts["自動v4"].Enabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
+            local tween = TweenService:Create(knob, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos})
+            tween:Play()
         end
     end)
 end)
