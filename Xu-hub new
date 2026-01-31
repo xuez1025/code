@@ -472,34 +472,21 @@ Scripts["自動v3"] = {
     end
 }
 
--- ===== v4核心 =====
+-- ================= 狀態 =================
+local V4_ENABLED = false
 
-local Scripts = Scripts or {}
-
-Scripts["自動v4"] = {
-    Enabled = false,
-    _conn = nil,
-
-    Func = function(self)
-        local VirtualInputManager = game:GetService("VirtualInputManager")
-        if self._conn then return end
-        self._conn = task.spawn(function()
-            while self.Enabled do
-                -- 按下 Y
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Y, false, game)
-                task.wait(0.01)
-                -- 放開 Y
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Y, false, game)
-                task.wait(0.1)
-            end
-        end)
-    end,
-
-    StopFunc = function(self)
-        self.Enabled = false
-        self._conn = nil
+-- ================= 取得 Awakening RemoteFunction =================
+local function getAwakeningRemote()
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        local awakening = backpack:FindFirstChild("Awakening")
+        if awakening then
+            return awakening:FindFirstChild("RemoteFunction")
+        end
     end
-}
+    return nil
+end
+
 -- ================= 核心邏輯 =================
 local JumpSettings = {
     Enabled = false,
@@ -518,111 +505,112 @@ local function updateJumpPower(player)
     end
 end
 
--- 監聽角色刷新
-game.Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        updateJumpPower(player)
-    end)
-end)
-
+-- ================== 狀態 ==================
 local FlyEnabled = false
-local TargetPlayer = nil
 local NoclipEnabled = false
-local FlyBV, FlyBG
+local TargetPlayer = nil
 
--- ================== Fly 功能 ==================
+local FlyBV = nil
+local FlyBG = nil
+
+local FLY_SPEED = 200
+
+-- ================== 工具函數 ==================
+local function getCharacter()
+    return LocalPlayer.Character
+end
+
+local function getHumanoid()
+    local char = getCharacter()
+    return char and char:FindFirstChildOfClass("Humanoid")
+end
+
+local function getHRP()
+    local char = getCharacter()
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+-- ================== Fly ==================
 local function EnableFly()
-    local char = LocalPlayer.Character
-    if not char or FlyBV then return end
+    local hrp = getHRP()
+    local hum = getHumanoid()
+    if not hrp or not hum or FlyBV then return end
 
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
+    hum.PlatformStand = false
+    hum:ChangeState(Enum.HumanoidStateType.Running)
+    task.wait()
 
-    -- BodyVelocity 控制速度
+    -- BodyVelocity
     FlyBV = Instance.new("BodyVelocity")
     FlyBV.MaxForce = Vector3.new(1e9,1e9,1e9)
     FlyBV.Velocity = Vector3.zero
     FlyBV.Parent = hrp
 
-    -- BodyGyro 控制方向
+    -- BodyGyro
     FlyBG = Instance.new("BodyGyro")
     FlyBG.MaxTorque = Vector3.new(1e9,1e9,1e9)
     FlyBG.P = 50000
     FlyBG.CFrame = hrp.CFrame
     FlyBG.Parent = hrp
 
-    -- Humanoid 改成 Physics 狀態
-    if hum then
-        hum:ChangeState(Enum.HumanoidStateType.Physics)
-    end
+    hum:ChangeState(Enum.HumanoidStateType.Physics)
 end
 
 local function DisableFly()
     if FlyBV then FlyBV:Destroy() FlyBV = nil end
     if FlyBG then FlyBG:Destroy() FlyBG = nil end
 
-    local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local hum = getHumanoid()
     if hum then
+        hum.PlatformStand = false
         hum:ChangeState(Enum.HumanoidStateType.GettingUp)
     end
 end
 
 -- ================== Noclip ==================
 RunService.Stepped:Connect(function()
-    if NoclipEnabled then
-        local char = LocalPlayer.Character
-        if char then
-            for _,p in ipairs(char:GetDescendants()) do
-                if p:IsA("BasePart") then
-                    p.CanCollide = false
-                end
-            end
+    if not NoclipEnabled then return end
+    local char = getCharacter()
+    if not char then return end
+
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
         end
     end
 end)
 
--- ================== Fly 控制 ==================
+-- ================== Fly 控制核心 ==================
 RunService.RenderStepped:Connect(function()
-    if FlyEnabled then
-        local char = LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp and FlyBV and FlyBG then
-            local velocity = Vector3.zero
+    if not FlyEnabled then return end
 
-            -- 鍵盤控制（WASD 上下飛行）
-            local keys = {W=false, A=false, S=false, D=false, Space=false, LeftShift=false}
-            local UIS = game:GetService("UserInputService")
-            for k,v in pairs(keys) do
-                keys[k] = UIS:IsKeyDown(Enum.KeyCode[k])
-            end
+    local hrp = getHRP()
+    local hum = getHumanoid()
+    if not hrp or not hum or not FlyBV or not FlyBG then return end
 
-            local cam = workspace.CurrentCamera
-            if cam then
-                local forward = cam.CFrame.LookVector
-                local right = cam.CFrame.RightVector
+    -- Anti Ragdoll / Anti Knockback
+    if hum:GetState() ~= Enum.HumanoidStateType.Physics then
+        hum.PlatformStand = false
+        hum:ChangeState(Enum.HumanoidStateType.Physics)
+    end
 
-                if keys.W then velocity += forward end
-                if keys.S then velocity -= forward end
-                if keys.D then velocity += right end
-                if keys.A then velocity -= right end
-                if keys.Space then velocity += Vector3.new(0,1,0) end
-                if keys.LeftShift then velocity -= Vector3.new(0,1,0) end
-            end
+    -- 尚未選擇玩家 → 停止飛行
+    if not TargetPlayer then
+        FlyBV.Velocity = Vector3.zero
+        FlyBG.CFrame = hrp.CFrame
+        return
+    end
 
-            velocity = velocity.Unit * (velocity.Magnitude > 0 and 200 or 0) -- 最大速度
-            FlyBV.Velocity = velocity
-            FlyBG.CFrame = CFrame.new(hrp.Position, hrp.Position + (velocity.Magnitude > 0 and velocity or hrp.CFrame.LookVector))
-        end
-
-        -- 如果有指定目標玩家，自動跟隨
-        if TargetPlayer and TargetPlayer.Character then
-            local targetHrp = TargetPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if targetHrp and FlyBV then
-                local direction = targetHrp.Position - hrp.Position
-                FlyBV.Velocity = direction.Unit * math.clamp(direction.Magnitude*10, 50, 300) + Vector3.new(0,5,0)
-                FlyBG.CFrame = CFrame.new(hrp.Position, targetHrp.Position)
-            end
+    -- 選擇玩家 → 跟隨目標
+    if TargetPlayer.Character then
+        local targetHRP = TargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if targetHRP then
+            local dir = targetHRP.Position - hrp.Position
+            FlyBV.Velocity = dir.Unit * math.clamp(dir.Magnitude * 8, 80, 300) + Vector3.new(0,5,0)
+            FlyBG.CFrame = CFrame.new(hrp.Position, targetHRP.Position)
+        else
+            FlyBV.Velocity = Vector3.zero
+            FlyBG.CFrame = hrp.CFrame
         end
     end
 end)
@@ -1741,7 +1729,7 @@ y = y + 60 -- 下一個選項的 y 位置
 
                 y = y + 60
 
--- 1️⃣ Fly 開關
+-- 1️⃣ 飛行按鈕
 createOptionRow(contentFrame, y, "Fly to Player", function(row)
     local switchBg = Instance.new("Frame")
     switchBg.Size = UDim2.new(0,60,0.5,0)
@@ -2025,7 +2013,7 @@ RunService.RenderStepped:Connect(function(dt)
     mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
 end)
 
-createOptionRow(contentFrame, y, "race v3", function(row)
+createOptionRow(contentFrame, y, "自動v3", function(row)
     local switchBg = Instance.new("Frame")
     switchBg.Size = UDim2.new(0, 60, 0.5, 0)
     switchBg.Position = UDim2.new(1, -70, 0.25, 0)
@@ -2064,41 +2052,63 @@ createOptionRow(contentFrame, y, "race v3", function(row)
 end)
         y = y + 60
 
-createOptionRow(contentFrame, y, "race v4", function(row)
+createOptionRow(contentFrame, y, "自動v4", function(row)
+
+    -- 背景
     local switchBg = Instance.new("Frame")
     switchBg.Size = UDim2.new(0, 60, 0.5, 0)
     switchBg.Position = UDim2.new(1, -70, 0.25, 0)
-    switchBg.BackgroundColor3 = Scripts["自動v4"].Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
+    switchBg.BackgroundColor3 = V4_ENABLED
+        and Color3.fromRGB(0, 200, 0)
+        or Color3.fromRGB(100, 100, 100)
     switchBg.BorderSizePixel = 0
     switchBg.Parent = row
     Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 20)
 
+    -- 滑塊
     local knob = Instance.new("Frame")
     knob.Size = UDim2.new(0, 28, 1, 0)
-    knob.Position = Scripts["自動v4"].Enabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
+    knob.Position = V4_ENABLED
+        and UDim2.new(1, -28, 0, 0)
+        or UDim2.new(0, 0, 0, 0)
     knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     knob.BorderSizePixel = 0
     knob.Parent = switchBg
     Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 20)
 
-    -- 點擊切換開關（帶滑動動畫）
-    local UIS = game:GetService("UserInputService")
-    switchBg.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            Scripts["自動v4"].Enabled = not Scripts["自動v4"].Enabled
-            if Scripts["自動v4"].Enabled then
-                Scripts["自動v4"]:Func()
-            else
-                Scripts["自動v4"]:StopFunc()
-            end
+    -- 點擊層
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.fromScale(1, 1)
+    button.BackgroundTransparency = 1
+    button.Text = ""
+    button.Parent = switchBg
 
-            -- 更新UI顏色
-            switchBg.BackgroundColor3 = Scripts["自動v4"].Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
+    -- ================= 點擊事件 =================
+    button.MouseButton1Click:Connect(function()
+        V4_ENABLED = not V4_ENABLED
 
-            -- Tween 滑塊滑動
-            local targetPos = Scripts["自動v4"].Enabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
-            local tween = TweenService:Create(knob, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos})
-            tween:Play()
+        -- 背景顏色
+        switchBg.BackgroundColor3 = V4_ENABLED
+            and Color3.fromRGB(0, 200, 0)
+            or Color3.fromRGB(100, 100, 100)
+
+        -- 滑塊動畫
+        TweenService:Create(
+            knob,
+            TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {
+                Position = V4_ENABLED
+                    and UDim2.new(1, -28, 0, 0)
+                    or UDim2.new(0, 0, 0, 0)
+            }
+        ):Play()
+
+        -- 呼叫 Awakening
+        local remote = getAwakeningRemote()
+        if remote then
+            remote:InvokeServer(V4_ENABLED)
+        else
+            warn("Awakening RemoteFunction not found")
         end
     end)
 end)
