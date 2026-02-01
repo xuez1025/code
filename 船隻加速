@@ -2,17 +2,18 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Player = Players.LocalPlayer
 
 -- ================= 設定 =================
-local MAX_SPEED = 500
-local CURRENT_SPEED = 200
-local SPEED_ENABLED = false
+local MAX_BOAT_SPEED = 500        -- 船隻最大速度
+local CURRENT_BOAT_SPEED = 200    -- 當前速度
+local IS_SPEED_ACTIVE = false     -- 速度修改開關
 
 -- ================= 狀態 =================
-local CurrentSeat = nil
-local OriginalSpeed = nil
+local ACTIVE_SEAT = nil           -- 玩家目前所在座位
+local ORIGINAL_SEAT_SPEED = nil   -- 座位原本速度
 
 -- ================= GUI =================
 local ScreenGui = Instance.new("ScreenGui", Player.PlayerGui)
@@ -49,12 +50,12 @@ SliderBg.BackgroundColor3 = Color3.fromRGB(50,50,50)
 
 local SliderFill = Instance.new("Frame", SliderBg)
 SliderFill.BackgroundColor3 = Color3.fromRGB(0,170,255)
-SliderFill.Size = UDim2.new(CURRENT_SPEED / MAX_SPEED,0,1,0)
+SliderFill.Size = UDim2.new(CURRENT_BOAT_SPEED / MAX_BOAT_SPEED,0,1,0)
 
 local SpeedText = Instance.new("TextLabel", Main)
 SpeedText.Size = UDim2.fromScale(1,0.15)
 SpeedText.Position = UDim2.fromScale(0,0.75)
-SpeedText.Text = "Speed : "..CURRENT_SPEED
+SpeedText.Text = "Speed : "..CURRENT_BOAT_SPEED
 SpeedText.TextColor3 = Color3.new(1,1,1)
 SpeedText.BackgroundTransparency = 1
 SpeedText.Font = Enum.Font.SourceSansBold
@@ -62,33 +63,33 @@ SpeedText.TextSize = 18
 
 -- ================= 開關 =================
 Toggle.MouseButton1Click:Connect(function()
-	SPEED_ENABLED = not SPEED_ENABLED
+	IS_SPEED_ACTIVE = not IS_SPEED_ACTIVE
 
-	if SPEED_ENABLED then
+	if IS_SPEED_ACTIVE then
 		Toggle.Text = "速度修改：開啟"
 		Toggle.BackgroundColor3 = Color3.fromRGB(0,120,0)
-		if CurrentSeat then
-			CurrentSeat.MaxSpeed = CURRENT_SPEED
+		if ACTIVE_SEAT then
+			ACTIVE_SEAT.MaxSpeed = CURRENT_BOAT_SPEED
 		end
 	else
 		Toggle.Text = "速度修改：關閉"
 		Toggle.BackgroundColor3 = Color3.fromRGB(70,70,70)
-		if CurrentSeat and OriginalSpeed then
-			CurrentSeat.MaxSpeed = OriginalSpeed
+		if ACTIVE_SEAT and ORIGINAL_SEAT_SPEED then
+			ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
 		end
 	end
 end)
 
 -- ================= 滑桿 =================
 local dragging = false
-SliderBg.InputBegan:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+SliderBg.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 		dragging = true
 	end
 end)
 
-UserInputService.InputEnded:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 		dragging = false
 	end
 end)
@@ -100,33 +101,44 @@ RunService.RenderStepped:Connect(function()
 	local w = SliderBg.AbsoluteSize.X
 	local p = math.clamp((x - sx) / w, 0, 1)
 
-	CURRENT_SPEED = math.floor(p * MAX_SPEED)
-	SliderFill.Size = UDim2.new(p,0,1,0)
-	SpeedText.Text = "Speed : "..CURRENT_SPEED
+	CURRENT_BOAT_SPEED = math.floor(p * MAX_BOAT_SPEED)
+	TweenService:Create(SliderFill, TweenInfo.new(0.05), {Size = UDim2.new(p,0,1,0)}):Play()
+	SpeedText.Text = "Speed : "..CURRENT_BOAT_SPEED
 
-	if SPEED_ENABLED and CurrentSeat then
-		CurrentSeat.MaxSpeed = CURRENT_SPEED
+	if IS_SPEED_ACTIVE and ACTIVE_SEAT then
+		ACTIVE_SEAT.MaxSpeed = CURRENT_BOAT_SPEED
 	end
 end)
 
--- ================= 坐船偵測（關鍵） =================
+-- ================= 坐船偵測 =================
 local function onCharacter(char)
 	local hum = char:WaitForChild("Humanoid")
 
+	-- 初始座位檢查
+	for _, seat in pairs(workspace:GetDescendants()) do
+		if seat:IsA("VehicleSeat") and seat.Occupant == hum then
+			ACTIVE_SEAT = seat
+			ORIGINAL_SEAT_SPEED = seat.MaxSpeed
+			if IS_SPEED_ACTIVE then
+				seat.MaxSpeed = CURRENT_BOAT_SPEED
+			end
+		end
+	end
+
 	hum.Seated:Connect(function(sitting, seat)
 		if sitting and seat:IsA("VehicleSeat") then
-			CurrentSeat = seat
-			OriginalSpeed = seat.MaxSpeed
+			ACTIVE_SEAT = seat
+			ORIGINAL_SEAT_SPEED = seat.MaxSpeed
 
-			if SPEED_ENABLED then
-				seat.MaxSpeed = CURRENT_SPEED
+			if IS_SPEED_ACTIVE then
+				seat.MaxSpeed = CURRENT_BOAT_SPEED
 			end
 		else
-			if CurrentSeat and OriginalSpeed then
-				CurrentSeat.MaxSpeed = OriginalSpeed
+			if ACTIVE_SEAT and ORIGINAL_SEAT_SPEED then
+				ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
 			end
-			CurrentSeat = nil
-			OriginalSpeed = nil
+			ACTIVE_SEAT = nil
+			ORIGINAL_SEAT_SPEED = nil
 		end
 	end)
 end
