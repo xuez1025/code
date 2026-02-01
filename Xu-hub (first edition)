@@ -37,10 +37,10 @@ local TARGET_CFRAME4 = CFrame.new(-5060,317,-3193)
         local CharactersFolder = workspace:WaitForChild("Characters")
 
 -- ================= 核心參數 =================
-local SLIDE_MAGNITUDE = 200  -- 初始速度
-local ACCELERATION = 12      -- 加速
-local DECELERATION = 18      -- 減速
-local MAX_SPEED = 1000       -- 速度上限
+local SLIDE_MAGNITUDE = 200
+local ACCELERATION = 12
+local DECELERATION = 18
+local MAX_SPEED = 1000
 
 local moving = false
 local moveConn
@@ -59,7 +59,7 @@ end
 setupCharacter(player.Character or player.CharacterAdded:Wait())
 player.CharacterAdded:Connect(setupCharacter)
 
--- WASD
+-- WASD 控制
 UserInputService.InputBegan:Connect(function(input,gpe)
     if gpe then return end
     if input.KeyCode==Enum.KeyCode.W then moveKeys.W=true end
@@ -101,7 +101,7 @@ local function startMove()
         local lerpSpeed = dir.Magnitude > 0 and ACCELERATION or DECELERATION
         currentVelocity = currentVelocity:Lerp(targetVelocity, math.clamp(lerpSpeed*dt,0,1))
 
-        -- 只水平移動（無跳躍）
+        -- 只水平移動
         root.CFrame += Vector3.new(currentVelocity.X, 0, currentVelocity.Z) * dt
     end)
 end
@@ -121,6 +121,57 @@ local function toggleMove(state)
         stopMove()
     end
 end
+
+-- 預設啟動人物移動
+toggleMove(false)
+
+-- ================= 船隻速度核心 =================
+local BoatSpeedSettings = {
+    Enabled = false,
+    Speed = 200,
+    MaxSpeed = 500
+}
+local ACTIVE_SEAT = nil
+local ORIGINAL_SEAT_SPEED = nil
+
+local function updateBoatSpeed()
+    if not ACTIVE_SEAT then return end
+
+    if BoatSpeedSettings.Enabled then
+        ACTIVE_SEAT.MaxSpeed = BoatSpeedSettings.Speed
+    else
+        if ORIGINAL_SEAT_SPEED then
+            ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
+        end
+    end
+end
+
+local function onCharacter(char)
+    local hum = char:WaitForChild("Humanoid")
+
+    hum.Seated:Connect(function(sitting, seat)
+        if sitting and seat:IsA("VehicleSeat") then
+            -- 上船時關閉人物移動
+            toggleMove(false)
+
+            ACTIVE_SEAT = seat
+            ORIGINAL_SEAT_SPEED = seat.MaxSpeed
+            updateBoatSpeed()
+        else
+            -- 離開船時恢復人物移動
+            toggleMove(true)
+
+            if ACTIVE_SEAT and ORIGINAL_SEAT_SPEED then
+                ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
+            end
+            ACTIVE_SEAT = nil
+            ORIGINAL_SEAT_SPEED = nil
+        end
+    end)
+end
+
+if player.Character then onCharacter(player.Character) end
+player.CharacterAdded:Connect(onCharacter)
 
         -- ===== Farm TP 核心狀態 =====
         local FarmTP = {
@@ -563,46 +614,6 @@ RunService.RenderStepped:Connect(function()
         hrp.Velocity = direction * FlySpeed
     end
 end)
-
--- ================= 船隻速度核心 =================
-local BoatSpeedSettings = {
-    Enabled = false,
-    Speed = 200,
-    MaxSpeed = 500
-}
-local ACTIVE_SEAT = nil
-local ORIGINAL_SEAT_SPEED = nil
-local function updateBoatSpeed()
-    if not ACTIVE_SEAT then return end
-
-    if BoatSpeedSettings.Enabled then
-        ACTIVE_SEAT.MaxSpeed = BoatSpeedSettings.Speed
-    else
-        if ORIGINAL_SEAT_SPEED then
-            ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
-        end
-    end
-end
-local function onCharacter(char)
-    local hum = char:WaitForChild("Humanoid")
-
-    hum.Seated:Connect(function(sitting, seat)
-        if sitting and seat:IsA("VehicleSeat") then
-            ACTIVE_SEAT = seat
-            ORIGINAL_SEAT_SPEED = seat.MaxSpeed
-            updateBoatSpeed()
-        else
-            if ACTIVE_SEAT and ORIGINAL_SEAT_SPEED then
-                ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
-            end
-            ACTIVE_SEAT = nil
-            ORIGINAL_SEAT_SPEED = nil
-        end
-    end)
-end
-
-if player.Character then onCharacter(player.Character) end
-player.CharacterAdded:Connect(onCharacter)
 
         -- ===== Xu-hub UI =====
         local screenGui = Instance.new("ScreenGui")
