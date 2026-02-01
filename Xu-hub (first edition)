@@ -46,8 +46,13 @@ local moving = false
 local moveConn
 local moveKeys = {W=false, A=false, S=false, D=false}
 local currentVelocity = Vector3.zero
+local wasMoving = false -- 記錄滑動移動原本是否開啟
 
-local player = Players.LocalPlayer
+local player = game:GetService("Players").LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
 local character, root, humanoid
 
 -- ================= 核心函數 =================
@@ -59,8 +64,8 @@ end
 setupCharacter(player.Character or player.CharacterAdded:Wait())
 player.CharacterAdded:Connect(setupCharacter)
 
--- WASD 控制
-UserInputService.InputBegan:Connect(function(input,gpe)
+-- ================= WASD 控制 =================
+UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.KeyCode==Enum.KeyCode.W then moveKeys.W=true end
     if input.KeyCode==Enum.KeyCode.A then moveKeys.A=true end
@@ -79,6 +84,7 @@ end)
 local function startMove()
     if moving or not root then return end
     moving = true
+    wasMoving = true -- 手動開啟滑動就標記原本是開啟狀態
 
     moveConn = RunService.RenderStepped:Connect(function(dt)
         if not root then return end
@@ -94,14 +100,10 @@ local function startMove()
         if moveKeys.D then dir += right end
         if dir.Magnitude > 0 then dir = dir.Unit end
 
-        -- 目標速度
         local targetVelocity = dir * SLIDE_MAGNITUDE
-
-        -- 平滑速度
         local lerpSpeed = dir.Magnitude > 0 and ACCELERATION or DECELERATION
         currentVelocity = currentVelocity:Lerp(targetVelocity, math.clamp(lerpSpeed*dt,0,1))
 
-        -- 只水平移動
         root.CFrame += Vector3.new(currentVelocity.X, 0, currentVelocity.Z) * dt
     end)
 end
@@ -119,13 +121,12 @@ local function toggleMove(state)
         startMove()
     else
         stopMove()
+        wasMoving = false -- 手動關閉滑動也要更新原本狀態
+        currentVelocity = Vector3.zero
     end
 end
 
--- 預設啟動人物移動
-toggleMove(false)
-
--- ================= 船隻速度核心 =================
+-- ================= 船速系統 =================
 local BoatSpeedSettings = {
     Enabled = false,
     Speed = 200,
@@ -136,42 +137,50 @@ local ORIGINAL_SEAT_SPEED = nil
 
 local function updateBoatSpeed()
     if not ACTIVE_SEAT then return end
-
     if BoatSpeedSettings.Enabled then
         ACTIVE_SEAT.MaxSpeed = BoatSpeedSettings.Speed
-    else
-        if ORIGINAL_SEAT_SPEED then
-            ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
-        end
+    elseif ORIGINAL_SEAT_SPEED then
+        ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
     end
 end
 
+-- ================= 船座監聽 =================
 local function onCharacter(char)
     local hum = char:WaitForChild("Humanoid")
 
     hum.Seated:Connect(function(sitting, seat)
         if sitting and seat:IsA("VehicleSeat") then
-            -- 上船時關閉人物移動
-            toggleMove(false)
+            -- 上船：暫停人物滑動，但保留 wasMoving 原本狀態
+            if moving then
+                stopMove()
+            end
 
             ACTIVE_SEAT = seat
             ORIGINAL_SEAT_SPEED = seat.MaxSpeed
             updateBoatSpeed()
         else
-            -- 離開船時恢復人物移動
-            toggleMove(true)
-
+            -- 離船：恢復船速度
             if ACTIVE_SEAT and ORIGINAL_SEAT_SPEED then
                 ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
             end
             ACTIVE_SEAT = nil
             ORIGINAL_SEAT_SPEED = nil
+
+            -- 下船：根據原本滑動狀態處理
+            if wasMoving then
+                startMove() -- 原本開啟滑動才恢復
+            else
+                currentVelocity = Vector3.zero -- 原本關閉只重置速度
+            end
         end
     end)
 end
 
 if player.Character then onCharacter(player.Character) end
 player.CharacterAdded:Connect(onCharacter)
+
+-- ================= 預設關閉人物滑動 =================
+toggleMove(false)
 
         -- ===== Farm TP 核心狀態 =====
         local FarmTP = {
