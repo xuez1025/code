@@ -7,13 +7,13 @@ local TweenService = game:GetService("TweenService")
 local Player = Players.LocalPlayer
 
 -- ================= 設定 =================
-local MAX_BOAT_SPEED = 500        -- 船隻最大速度
-local CURRENT_BOAT_SPEED = 200    -- 當前速度
-local IS_SPEED_ACTIVE = false     -- 速度修改開關
+local MAX_BOAT_SPEED = 500
+local CURRENT_BOAT_SPEED = 200
+local IS_SPEED_ACTIVE = false
 
 -- ================= 狀態 =================
-local ACTIVE_SEAT = nil           -- 玩家目前所在座位
-local ORIGINAL_SEAT_SPEED = nil   -- 座位原本速度
+local ACTIVE_SEAT = nil
+local ORIGINAL_SEAT_SPEED = nil
 
 -- ================= GUI =================
 local ScreenGui = Instance.new("ScreenGui", Player.PlayerGui)
@@ -64,49 +64,36 @@ SpeedText.TextSize = 18
 -- ================= 開關 =================
 Toggle.MouseButton1Click:Connect(function()
 	IS_SPEED_ACTIVE = not IS_SPEED_ACTIVE
-
-	if IS_SPEED_ACTIVE then
-		Toggle.Text = "速度修改：開啟"
-		Toggle.BackgroundColor3 = Color3.fromRGB(0,120,0)
-		if ACTIVE_SEAT then
-			ACTIVE_SEAT.MaxSpeed = CURRENT_BOAT_SPEED
-		end
-	else
-		Toggle.Text = "速度修改：關閉"
-		Toggle.BackgroundColor3 = Color3.fromRGB(70,70,70)
-		if ACTIVE_SEAT and ORIGINAL_SEAT_SPEED then
-			ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
-		end
+	Toggle.Text = "速度修改："..(IS_SPEED_ACTIVE and "開啟" or "關閉")
+	Toggle.BackgroundColor3 = IS_SPEED_ACTIVE and Color3.fromRGB(0,120,0) or Color3.fromRGB(70,70,70)
+	if ACTIVE_SEAT then
+		ACTIVE_SEAT.MaxSpeed = IS_SPEED_ACTIVE and CURRENT_BOAT_SPEED or ORIGINAL_SEAT_SPEED
 	end
 end)
 
 -- ================= 滑桿 =================
 local dragging = false
 SliderBg.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
 	end
 end)
-
 UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = false
 	end
 end)
 
 RunService.RenderStepped:Connect(function()
-	if not dragging then return end
-	local x = UserInputService:GetMouseLocation().X
-	local sx = SliderBg.AbsolutePosition.X
-	local w = SliderBg.AbsoluteSize.X
-	local p = math.clamp((x - sx) / w, 0, 1)
-
-	CURRENT_BOAT_SPEED = math.floor(p * MAX_BOAT_SPEED)
-	TweenService:Create(SliderFill, TweenInfo.new(0.05), {Size = UDim2.new(p,0,1,0)}):Play()
-	SpeedText.Text = "Speed : "..CURRENT_BOAT_SPEED
-
-	if IS_SPEED_ACTIVE and ACTIVE_SEAT then
-		ACTIVE_SEAT.MaxSpeed = CURRENT_BOAT_SPEED
+	if dragging then
+		local x = UserInputService:GetMouseLocation().X
+		local p = math.clamp((x - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
+		CURRENT_BOAT_SPEED = math.floor(p * MAX_BOAT_SPEED)
+		TweenService:Create(SliderFill, TweenInfo.new(0.05), {Size = UDim2.new(p,0,1,0)}):Play()
+		SpeedText.Text = "Speed : "..CURRENT_BOAT_SPEED
+		if IS_SPEED_ACTIVE and ACTIVE_SEAT then
+			ACTIVE_SEAT.MaxSpeed = CURRENT_BOAT_SPEED
+		end
 	end
 end)
 
@@ -114,36 +101,20 @@ end)
 local function onCharacter(char)
 	local hum = char:WaitForChild("Humanoid")
 
-	-- 初始座位檢查
-	for _, seat in pairs(workspace:GetDescendants()) do
-		if seat:IsA("VehicleSeat") and seat.Occupant == hum then
-			ACTIVE_SEAT = seat
-			ORIGINAL_SEAT_SPEED = seat.MaxSpeed
-			if IS_SPEED_ACTIVE then
-				seat.MaxSpeed = CURRENT_BOAT_SPEED
-			end
-		end
-	end
-
 	hum.Seated:Connect(function(sitting, seat)
 		if sitting and seat:IsA("VehicleSeat") then
 			ACTIVE_SEAT = seat
 			ORIGINAL_SEAT_SPEED = seat.MaxSpeed
-
 			if IS_SPEED_ACTIVE then
 				seat.MaxSpeed = CURRENT_BOAT_SPEED
 			end
-		else
-			if ACTIVE_SEAT and ORIGINAL_SEAT_SPEED then
-				ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
-			end
+		elseif ACTIVE_SEAT then
+			ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
 			ACTIVE_SEAT = nil
 			ORIGINAL_SEAT_SPEED = nil
 		end
 	end)
 end
 
-if Player.Character then
-	onCharacter(Player.Character)
-end
+if Player.Character then onCharacter(Player.Character) end
 Player.CharacterAdded:Connect(onCharacter)
