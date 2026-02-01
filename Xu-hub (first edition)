@@ -1455,6 +1455,7 @@ y = y + 60
 
 elseif index == 4 then
     local y = 10
+
     -- ===== 彩虹大標題 =====
     local mainTitle = Instance.new("TextLabel")
     mainTitle.Size = UDim2.new(1,-20,0,60)
@@ -1479,18 +1480,17 @@ elseif index == 4 then
 
 -- ================= ServerInfoGUI (貼齊左右 + 圓角 + 灰色) =================
 local frame = Instance.new("Frame", contentFrame)
-frame.Size = UDim2.new(1, 0, 0, 375) -- 寬度 100% 貼齊左右
+frame.Size = UDim2.new(1, 0, 0, 400) -- 減少高度，移除 PlaceId
 frame.Position = UDim2.new(0, 0, 0, y)
-frame.BackgroundColor3 = Color3.fromRGB(50,50,50) -- 灰色
+frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
 frame.BorderSizePixel = 0
 
--- 圓角
 local uicorner = Instance.new("UICorner", frame)
-uicorner.CornerRadius = UDim.new(0, 20) -- 20 像素圓角，可調整
+uicorner.CornerRadius = UDim.new(0, 20)
 
 local function createLabel(yPos)
     local l = Instance.new("TextLabel", frame)
-    l.Size = UDim2.new(1, -30, 0, 38) -- 左右留點邊距
+    l.Size = UDim2.new(1, -30, 0, 38)
     l.Position = UDim2.new(0, 15, 0, yPos)
     l.BackgroundTransparency = 1
     l.TextXAlignment = Enum.TextXAlignment.Left
@@ -1500,104 +1500,59 @@ local function createLabel(yPos)
     return l
 end
 
+-- 原本的 Label（往上調整位置）
 local playerLabel = createLabel(50)
 local timeLabel = createLabel(95)
-local pingLabel = createLabel(140) -- 調整位置，把 Ping 往上移
-local placeLabel = createLabel(185) -- 也往上移
-placeLabel.Text = "PlaceId: "..game.PlaceId
+local pingLabel = createLabel(140)
 
--- 複製按鈕
-local copyBtn = Instance.new("TextButton", frame)
-copyBtn.Size = UDim2.new(0, 90, 0, 33)
-copyBtn.Position = UDim2.new(1, -105, 0, 190) -- 調整位置
-copyBtn.Text = "Copy"
-copyBtn.Font = Enum.Font.SourceSansBold
-copyBtn.TextSize = 20
-copyBtn.MouseButton1Click:Connect(function()
-    if setclipboard then
-        setclipboard(tostring(game.PlaceId))
-    end
-end)
+-- ================= 新增 FPS / Discord / GameTime Label =================
+local fpsLabel = createLabel(185)
+local gameTimeLabel = createLabel(230)
+local discordLabel = createLabel(275)
+discordLabel.Text = "https://discord.gg/ptec6vhQtf" -- 初始文字
 
--- ================= 輸入框 + Join + Clear =================
-local inputBox = Instance.new("TextBox", frame)
-inputBox.Size = UDim2.new(1, -235, 0, 38) -- 留右側空間給 Join + Clear
-inputBox.Position = UDim2.new(0, 15, 0, 235)
-inputBox.ClearTextOnFocus = false
-inputBox.Font = Enum.Font.SourceSans
-inputBox.TextSize = 25
-inputBox.Text = "" 
-
--- Join 按鈕
-local joinBtn = Instance.new("TextButton", frame)
-joinBtn.Size = UDim2.new(0, 90, 0, 38)
-joinBtn.Position = UDim2.new(1, -105, 0, 235)
-joinBtn.Text = "Join"
-joinBtn.Font = Enum.Font.SourceSansBold
-joinBtn.TextSize = 20
-joinBtn.MouseButton1Click:Connect(function()
-    local id = tonumber(inputBox.Text)
-    if id and id == game.PlaceId then
-        game:GetService("TeleportService"):Teleport(id, game.Players.LocalPlayer)
-    end
-end)
-
--- Clear 按鈕（放在 Join 按鈕左側）
-local clearBtn = Instance.new("TextButton", frame)
-clearBtn.Size = UDim2.new(0, 38, 0, 38) -- 方形按鈕
-clearBtn.Position = UDim2.new(1, -220, 0, 235) -- 緊靠 Join 按鈕左側
-clearBtn.Text = "清除"
-clearBtn.Font = Enum.Font.SourceSansBold
-clearBtn.TextSize = 20
-clearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-clearBtn.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
-clearBtn.BorderSizePixel = 0
-clearBtn.MouseButton1Click:Connect(function()
-    inputBox.Text = "" -- 點擊清空輸入框
-end)
-
-
--- ================= Drag Function =================
-local dragging, dragStart, startPos
-frame.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = i.Position
-        startPos = frame.Position
-    end
-end)
-UserInputService.InputChanged:Connect(function(i)
-    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = i.Position - dragStart
-        frame.Position = UDim2.new(
-            startPos.X.Scale, startPos.X.Offset + delta.X,
-            startPos.Y.Scale, startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-UserInputService.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
+-- Discord 複製按鈕
+local discordBtn = Instance.new("TextButton", frame)
+discordBtn.Size = UDim2.new(0, 180, 0, 33)
+discordBtn.Position = UDim2.new(1, -195, 0, 275)
+discordBtn.Text = "Copy"
+discordBtn.Font = Enum.Font.SourceSansBold
+discordBtn.TextSize = 20
+discordBtn.MouseButton1Click:Connect(function()
+    setclipboard("https://discord.gg/ptec6vhQtf") -- 填你的 Discord 連結
+    print("Discord Link Copied!")
 end)
 
 -- ================= Update =================
-local joinTime = tick()
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
 RunService.RenderStepped:Connect(function()
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
     -- 玩家數
     playerLabel.Text = string.format("Players: %d / %d", #Players:GetPlayers(), Players.MaxPlayers)
     
     -- 本地時間
-local t = os.date("*t")
-timeLabel.Text = string.format(
-    "Local Time: %04d-%02d-%02d %02d:%02d",
-    t.year, t.month, t.day, t.hour, t.min
-)
+    local t = os.date("*t")
+    timeLabel.Text = string.format(
+        "Local Time: %04d-%02d-%02d %02d:%02d",
+        t.year, t.month, t.day, t.hour, t.min
+    )
+    
     -- Ping
     local ping = LocalPlayer:GetNetworkPing() * 1000
     pingLabel.Text = string.format("Ping: %.0f ms", ping)
+
+    -- FPS
+    local fps = workspace:GetRealPhysicsFPS()
+    fpsLabel.Text = string.format("FPS: %.0f", fps)
+
+    -- Game Time
+    local GameTime = math.floor(workspace.DistributedGameTime + 0.5)
+    local Hour = math.floor(GameTime / 60 ^ 2) % 24
+    local Minute = math.floor(GameTime / 60 ^ 1) % 60
+    local Second = math.floor(GameTime / 60 ^ 0) % 60
+    gameTimeLabel.Text = string.format("Game Time: %02d:%02d:%02d", Hour, Minute, Second)
 end)
 
             elseif index == 5 then
