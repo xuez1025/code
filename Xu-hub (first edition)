@@ -564,6 +564,45 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- ================= 船隻速度核心 =================
+local BoatSpeedSettings = {
+    Enabled = false,
+    Speed = 200,
+    MaxSpeed = 500
+}
+local ACTIVE_SEAT = nil
+local ORIGINAL_SEAT_SPEED = nil
+local function updateBoatSpeed()
+    if not ACTIVE_SEAT then return end
+
+    if BoatSpeedSettings.Enabled then
+        ACTIVE_SEAT.MaxSpeed = BoatSpeedSettings.Speed
+    else
+        if ORIGINAL_SEAT_SPEED then
+            ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
+        end
+    end
+end
+local function onCharacter(char)
+    local hum = char:WaitForChild("Humanoid")
+
+    hum.Seated:Connect(function(sitting, seat)
+        if sitting and seat:IsA("VehicleSeat") then
+            ACTIVE_SEAT = seat
+            ORIGINAL_SEAT_SPEED = seat.MaxSpeed
+            updateBoatSpeed()
+        else
+            if ACTIVE_SEAT and ORIGINAL_SEAT_SPEED then
+                ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
+            end
+            ACTIVE_SEAT = nil
+            ORIGINAL_SEAT_SPEED = nil
+        end
+    end)
+end
+
+if player.Character then onCharacter(player.Character) end
+player.CharacterAdded:Connect(onCharacter)
 
         -- ===== Xu-hub UI =====
         local screenGui = Instance.new("ScreenGui")
@@ -1961,6 +2000,118 @@ RunService.RenderStepped:Connect(function(dt)
 end)
 
 y = y + 60 -- 下一個選項的 y 位置
+
+createOptionRow(contentFrame, y, "船隻加速", function(row)
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0,60,0.5,0)
+    switchBg.Position = UDim2.new(1,-70,0.25,0)
+    switchBg.BackgroundColor3 = BoatSpeedSettings.Enabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,28,1,0)
+    knob.Position = BoatSpeedSettings.Enabled and UDim2.new(1,-28,0,0) or UDim2.new(0,0,0,0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+
+    local function toggle()
+        BoatSpeedSettings.Enabled = not BoatSpeedSettings.Enabled
+
+        TweenService:Create(
+            switchBg,
+            TweenInfo.new(0.2),
+            {BackgroundColor3 = BoatSpeedSettings.Enabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)}
+        ):Play()
+
+        TweenService:Create(
+            knob,
+            TweenInfo.new(0.2),
+            {Position = BoatSpeedSettings.Enabled and UDim2.new(1,-28,0,0) or UDim2.new(0,0,0,0)}
+        ):Play()
+
+        updateBoatSpeed()
+    end
+
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggle()
+        end
+    end)
+end)
+
+y = y + 60
+
+createOptionRow(contentFrame, y, "速度調整", function(row)
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0,80,0.6,0)
+    inputBox.Position = UDim2.new(0,130,0.2,0)
+    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+    inputBox.TextScaled = true
+    inputBox.ClearTextOnFocus = false
+    inputBox.Text = tostring(BoatSpeedSettings.Speed)
+    inputBox.Parent = row
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,200,0.3,0)
+    slider.Position = UDim2.new(0,220,0.35,0)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = row
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(BoatSpeedSettings.Speed / BoatSpeedSettings.MaxSpeed,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(0,170,255)
+    fill.Parent = slider
+
+    local maxLabel = Instance.new("TextLabel")
+    maxLabel.Size = UDim2.new(0,80,1,0)
+    maxLabel.Position = UDim2.new(0,430,0,0)
+    maxLabel.BackgroundTransparency = 1
+    maxLabel.Text = "(max:500)"
+    maxLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    maxLabel.TextScaled = true
+    maxLabel.TextXAlignment = Enum.TextXAlignment.Left
+    maxLabel.Parent = row
+
+    local dragging = false
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    slider.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local x = math.clamp(input.Position.X - slider.AbsolutePosition.X, 0, slider.AbsoluteSize.X)
+            BoatSpeedSettings.Speed = math.floor((x / slider.AbsoluteSize.X) * BoatSpeedSettings.MaxSpeed)
+            fill.Size = UDim2.new(BoatSpeedSettings.Speed / BoatSpeedSettings.MaxSpeed,0,1,0)
+            inputBox.Text = tostring(BoatSpeedSettings.Speed)
+            updateBoatSpeed()
+        end
+    end)
+
+    inputBox.FocusLost:Connect(function()
+        local val = tonumber(inputBox.Text)
+        if val then
+            BoatSpeedSettings.Speed = math.clamp(val, 0, BoatSpeedSettings.MaxSpeed)
+            fill.Size = UDim2.new(BoatSpeedSettings.Speed / BoatSpeedSettings.MaxSpeed,0,1,0)
+            updateBoatSpeed()
+        else
+            inputBox.Text = tostring(BoatSpeedSettings.Speed)
+        end
+    end)
+end)
+
+y = y + 60
 
             elseif index == 7 then
                     local y = 10
