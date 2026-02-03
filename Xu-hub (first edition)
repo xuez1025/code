@@ -1113,7 +1113,7 @@ end)
 
 y = y + 60
 
-createOptionRow(contentFrame, y, "移除霧氣", function(row)
+createOptionRow(contentFrame, y, "Remove fog", function(row)
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(0, 40, 0.7, 0)
     button.Position = UDim2.new(1, -70, 0.15, 0)
