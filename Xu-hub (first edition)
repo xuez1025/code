@@ -706,6 +706,23 @@ local function RemoveFog()
     lightingService.FogEnd = 9e9
 end
 
+-- lava 核心
+local function removeLava()
+    for _, v in pairs(game.Workspace:GetDescendants()) do
+        if v.Name == "LavaParts" and v.Parent and v.Parent.Name == "CircleIsland" 
+            and v.Parent.Parent and v.Parent.Parent.Name == "Map" then
+            v:Destroy()
+        end
+    end
+
+    for _, v in pairs(game.ReplicatedStorage:GetDescendants()) do
+        if v.Name == "LavaParts" and v.Parent and v.Parent.Name == "CircleIsland" 
+            and v.Parent.Parent and v.Parent.Parent.Name == "Map" then
+            v:Destroy()
+        end
+    end
+end
+
         -- ===== Xu-hub UI =====
         local screenGui = Instance.new("ScreenGui")
         screenGui.Parent = PlayerGui
@@ -1040,6 +1057,56 @@ RunService.RenderStepped:Connect(function()
     if waterWalkEnabled then
         updatePlatform()
     end
+end)
+
+y = y + 60
+
+createOptionRow(contentFrame, y, "Remove Lava", function(row) 
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 40, 0.7, 0) 
+    button.Position = UDim2.new(1, -70, 0.15, 0) 
+    button.BackgroundTransparency = 1 
+    button.Text = "◉"
+    button.TextScaled = true
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.SourceSansBold
+    button.Parent = row
+
+    local clicked = false
+
+    button.MouseButton1Click:Connect(function()
+        if clicked then return end
+        clicked = true
+
+        -- Tween 動畫效果
+        local tweenService = game:GetService("TweenService")
+        local shrinkInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local shrinkGoal = {Size = UDim2.new(0, 30, 0.7, 0)}
+        local growGoal = {Size = UDim2.new(0, 40, 0.7, 0)}
+        local shrinkTween = tweenService:Create(button, shrinkInfo, shrinkGoal)
+        local growTween = tweenService:Create(button, shrinkInfo, growGoal)
+        shrinkTween:Play()
+        shrinkTween.Completed:Connect(function()
+            growTween:Play()
+        end)
+
+        local flashInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local flashGoal = {TextColor3 = Color3.fromRGB(255, 255, 0)}
+        local restoreGoal = {TextColor3 = Color3.fromRGB(255, 255, 255)}
+        local flashTween = tweenService:Create(button, flashInfo, flashGoal)
+        local restoreTween = tweenService:Create(button, flashInfo, restoreGoal)
+        flashTween:Play()
+        flashTween.Completed:Connect(function()
+            restoreTween:Play()
+        end)
+
+        -- 按鈕視覺更新
+        button.TextColor3 = Color3.fromRGB(150, 150, 150)
+        button.TextTransparency = 0.5
+
+        -- 呼叫核心功能
+        removeLava()
+    end)
 end)
 
 y = y + 60
