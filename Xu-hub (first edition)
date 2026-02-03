@@ -689,6 +689,23 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- =====================
+-- Remove Fog Core
+-- =====================
+local function RemoveFog()
+    local lightingService = game:GetService("Lighting")
+
+    if lightingService:FindFirstChild("LightingLayers") then
+        lightingService.LightingLayers:Destroy()
+    end
+
+    if lightingService:FindFirstChild("Sky") then
+        lightingService.Sky:Destroy()
+    end
+
+    lightingService.FogEnd = 9e9
+end
+
         -- ===== Xu-hub UI =====
         local screenGui = Instance.new("ScreenGui")
         screenGui.Parent = PlayerGui
@@ -1090,6 +1107,64 @@ createOptionRow(contentFrame, y, "低配模式", function(row)
         button.TextTransparency = 0.5
         task.delay(1, function()
             ApplyLowGraphics(true)
+        end)
+    end)
+end)
+
+y = y + 60
+
+createOptionRow(contentFrame, y, "移除霧氣", function(row)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 40, 0.7, 0)
+    button.Position = UDim2.new(1, -70, 0.15, 0)
+    button.BackgroundTransparency = 1
+    button.Text = "◉"
+    button.TextScaled = true
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.SourceSansBold
+    button.Parent = row
+
+    local clicked = false
+    local tweenService = game:GetService("TweenService")
+
+    button.MouseButton1Click:Connect(function()
+        if clicked then return end
+        clicked = true
+
+        -- 縮放動畫
+        local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local shrinkTween = tweenService:Create(button, tweenInfo, {
+            Size = UDim2.new(0, 30, 0.7, 0)
+        })
+        local growTween = tweenService:Create(button, tweenInfo, {
+            Size = UDim2.new(0, 40, 0.7, 0)
+        })
+
+        shrinkTween:Play()
+        shrinkTween.Completed:Connect(function()
+            growTween:Play()
+        end)
+
+        -- 閃光效果
+        local flashTween = tweenService:Create(button, TweenInfo.new(0.15), {
+            TextColor3 = Color3.fromRGB(255, 255, 0)
+        })
+        local restoreTween = tweenService:Create(button, TweenInfo.new(0.15), {
+            TextColor3 = Color3.fromRGB(255, 255, 255)
+        })
+
+        flashTween:Play()
+        flashTween.Completed:Connect(function()
+            restoreTween:Play()
+        end)
+
+        -- 按過後的狀態
+        button.TextColor3 = Color3.fromRGB(150, 150, 150)
+        button.TextTransparency = 0.5
+
+        -- 執行功能（延遲一點更順）
+        task.delay(0.2, function()
+            RemoveFog()
         end)
     end)
 end)
