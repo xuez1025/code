@@ -1492,7 +1492,7 @@ end)
 y = y + 60 -- 下一個選項的 y 位置
 
 -- ===== Hop Server =====
-createOptionRow(contentFrame, y, "切換伺服器(無反應)", function(row)
+createOptionRow(contentFrame, y, "切換伺服器", function(row)
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(0, 40, 0.7, 0)
     button.Position = UDim2.new(1, -70, 0.15, 0)
@@ -1503,51 +1503,62 @@ createOptionRow(contentFrame, y, "切換伺服器(無反應)", function(row)
     button.Font = Enum.Font.SourceSansBold
     button.Parent = row
 
-    local tweenService = game:GetService("TweenService")
-    local player = game.Players.LocalPlayer
-    local HttpService = game:GetService("HttpService")
+    local TweenService = game:GetService("TweenService")
     local TeleportService = game:GetService("TeleportService")
-    local PlaceId = game.PlaceId
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    local targetPlaceId = game.PlaceId
+
+    local isTeleporting = false
+
+    local function TeleportOnce()
+        if isTeleporting then return end
+        isTeleporting = true
+
+        pcall(function()
+            TeleportService:Teleport(targetPlaceId, LocalPlayer)
+        end)
+    end
 
     button.MouseButton1Click:Connect(function()
-        -- 動畫
-        local shrinkTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,30,0.7,0)})
-        local growTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,40,0.7,0)})
+        -- 點擊動畫
+        local shrinkTween = TweenService:Create(
+            button,
+            TweenInfo.new(0.1),
+            {Size = UDim2.new(0, 30, 0.7, 0)}
+        )
+        local growTween = TweenService:Create(
+            button,
+            TweenInfo.new(0.1),
+            {Size = UDim2.new(0, 40, 0.7, 0)}
+        )
         shrinkTween:Play()
-        shrinkTween.Completed:Connect(function() growTween:Play() end)
+        shrinkTween.Completed:Connect(function()
+            growTween:Play()
+        end)
 
-        local flashTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,0)})
-        local restoreTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,255)})
+        local flashTween = TweenService:Create(
+            button,
+            TweenInfo.new(0.15),
+            {TextColor3 = Color3.fromRGB(255, 255, 0)}
+        )
+        local restoreTween = TweenService:Create(
+            button,
+            TweenInfo.new(0.15),
+            {TextColor3 = Color3.fromRGB(255, 255, 255)}
+        )
         flashTween:Play()
-        flashTween.Completed:Connect(function() restoreTween:Play() end)
+        flashTween.Completed:Connect(function()
+            restoreTween:Play()
+        end)
 
-        -- 功能
+        -- 功能：重新傳送到同一 Place（重新進入）
         task.spawn(function()
-            local AllServers = {}
-            local cursor = ""
-
-            repeat
-                local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?limit=100"
-                if cursor ~= "" then url = url.."&cursor="..cursor end
-                local success, response = pcall(function()
-                    return HttpService:JSONDecode(game:HttpGet(url))
-                end)
-                if success and response and response.data then
-                    for _, s in ipairs(response.data) do
-                        if s.id ~= game.JobId and s.playing < s.maxPlayers then
-                            table.insert(AllServers, s)
-                        end
-                    end
-                    cursor = response.nextPageCursor or ""
-                else
-                    cursor = ""
-                end
-            until cursor == ""
-
-            if #AllServers == 0 then return end
-
-            table.sort(AllServers, function(a,b) return a.playing < b.playing end)
-            TeleportService:TeleportToPlaceInstance(PlaceId, AllServers[1].id, player)
+            if not LocalPlayer.Character then
+                LocalPlayer.CharacterAdded:Wait()
+            end
+            task.wait(1)
+            TeleportOnce()
         end)
     end)
 end)
