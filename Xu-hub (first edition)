@@ -834,8 +834,8 @@ end
 
         -- ===== 側欄按鈕 =====
         local buttonNames = {
-            "通用", "設定", "Server", "狀態", "PVP", 
-            "Farm", "自動", "傳送", "未解鎖", "未解鎖"
+            "自動", "通用", "Server", "狀態", "PVP", 
+            "Farm", "設定", "傳送", "未解鎖", "未解鎖"
         }
 
         local buttons = {}
@@ -902,6 +902,200 @@ end
             end
             
             if index == 1 then
+                    local y = 10
+-- ===== 彩虹大標題 =====
+local mainTitle = Instance.new("TextLabel")
+mainTitle.Size = UDim2.new(1,-20,0,60)
+mainTitle.Position = UDim2.new(0,10,0,y)
+mainTitle.BackgroundTransparency = 1
+mainTitle.Text = "自動"
+mainTitle.Font = Enum.Font.SourceSansBold
+mainTitle.TextColor3 = Color3.fromRGB(255,255,255)
+mainTitle.TextXAlignment = Enum.TextXAlignment.Center
+mainTitle.TextYAlignment = Enum.TextYAlignment.Center
+mainTitle.TextSize = 40      -- ★★★ 在這裡改字大小 ★★★
+mainTitle.Parent = contentFrame
+
+        y = y + 60
+
+-- 彩虹效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+
+local AutoBuso = true -- 初始狀態 ON
+
+createOptionRow(contentFrame, y, "自動武裝色", function(row) 
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0, 60, 0.5, 0)
+    switchBg.Position = UDim2.new(1, -70, 0.25, 0)
+    switchBg.BackgroundColor3 = AutoBuso 
+        and Color3.fromRGB(0, 200, 0) 
+        or Color3.fromRGB(100, 100, 100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 28, 1, 0)
+    knob.Position = AutoBuso 
+        and UDim2.new(1, -28, 0, 0) 
+        or UDim2.new(0, 0, 0, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 20)
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, 0, 1, 0)
+    button.BackgroundTransparency = 1
+    button.Text = ""
+    button.Parent = switchBg
+
+    button.MouseButton1Click:Connect(function()
+        AutoBuso = not AutoBuso
+
+        -- 視覺更新
+        switchBg.BackgroundColor3 = AutoBuso 
+            and Color3.fromRGB(0, 200, 0)
+            or Color3.fromRGB(100, 100, 100)
+
+        knob:TweenPosition(
+            AutoBuso and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0),
+            Enum.EasingDirection.Out,
+            Enum.EasingStyle.Quad,
+            0.15,
+            true
+        )
+    end)
+end)
+
+-- 自動武裝色邏輯
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Player = Players.LocalPlayer
+local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+
+task.spawn(function()
+    while task.wait(1) do
+        if AutoBuso then
+            pcall(function()
+                if Player.Character and not Player.Character:FindFirstChild("HasBuso") then
+                    CommF:InvokeServer("Buso")
+                end
+            end)
+        end
+    end
+end)
+
+y = y + 60
+
+createOptionRow(contentFrame, y, "自動v3", function(row)
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0, 60, 0.5, 0)
+    switchBg.Position = UDim2.new(1, -70, 0.25, 0)
+    switchBg.BackgroundColor3 = Scripts["自動v3"].Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 28, 1, 0)
+    knob.Position = Scripts["自動v3"].Enabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 20)
+
+    -- 點擊切換開關（帶滑動動畫）
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            Scripts["自動v3"].Enabled = not Scripts["自動v3"].Enabled
+            if Scripts["自動v3"].Enabled then
+                Scripts["自動v3"]:Func()
+            else
+                Scripts["自動v3"]:StopFunc()
+            end
+
+            -- 更新UI顏色
+            switchBg.BackgroundColor3 = Scripts["自動v3"].Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
+
+            -- Tween 滑塊滑動
+            local targetPos = Scripts["自動v3"].Enabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
+            local tween = TweenService:Create(knob, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos})
+            tween:Play()
+        end
+    end)
+end)
+        y = y + 60
+
+createOptionRow(contentFrame, y, "自動v4", function(row)
+
+    -- 背景
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0, 60, 0.5, 0)
+    switchBg.Position = UDim2.new(1, -70, 0.25, 0)
+    switchBg.BackgroundColor3 = V4_ENABLED
+        and Color3.fromRGB(0, 200, 0)
+        or Color3.fromRGB(100, 100, 100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 20)
+
+    -- 滑塊
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 28, 1, 0)
+    knob.Position = V4_ENABLED
+        and UDim2.new(1, -28, 0, 0)
+        or UDim2.new(0, 0, 0, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 20)
+
+    -- 點擊層
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.fromScale(1, 1)
+    button.BackgroundTransparency = 1
+    button.Text = ""
+    button.Parent = switchBg
+
+    -- ================= 點擊事件 =================
+    button.MouseButton1Click:Connect(function()
+        V4_ENABLED = not V4_ENABLED
+
+        -- 背景顏色
+        switchBg.BackgroundColor3 = V4_ENABLED
+            and Color3.fromRGB(0, 200, 0)
+            or Color3.fromRGB(100, 100, 100)
+
+        -- 滑塊動畫
+        TweenService:Create(
+            knob,
+            TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {
+                Position = V4_ENABLED
+                    and UDim2.new(1, -28, 0, 0)
+                    or UDim2.new(0, 0, 0, 0)
+            }
+        ):Play()
+
+        -- 呼叫 Awakening
+        local remote = getAwakeningRemote()
+        if remote then
+            remote:InvokeServer(V4_ENABLED)
+        else
+            warn("Awakening RemoteFunction not found")
+        end
+    end)
+end)
+
+        y = y + 60
+
+            elseif index == 2 then
                     local y = 10
 -- ===== 彩虹大標題 =====
 local mainTitle = Instance.new("TextLabel")
@@ -1095,429 +1289,6 @@ createOptionRow(contentFrame, y, "Remove Lava", function(row)
 
         -- 呼叫核心功能
         removeLava()
-    end)
-end)
-
-y = y + 60
-
-            elseif index == 2 then
-                    local y = 10
--- ===== 彩虹大標題 =====
-local mainTitle = Instance.new("TextLabel")
-mainTitle.Size = UDim2.new(1,-20,0,60)
-mainTitle.Position = UDim2.new(0,10,0,y)
-mainTitle.BackgroundTransparency = 1
-mainTitle.Text = "提高FPS"
-mainTitle.Font = Enum.Font.SourceSansBold
-mainTitle.TextColor3 = Color3.fromRGB(255,255,255)
-mainTitle.TextXAlignment = Enum.TextXAlignment.Center
-mainTitle.TextYAlignment = Enum.TextYAlignment.Center
-mainTitle.TextSize = 40      -- ★★★ 在這裡改字大小 ★★★
-mainTitle.Parent = contentFrame
-
--- 彩虹效果
-local hue = 0
-RunService.RenderStepped:Connect(function(dt)
-    hue = (hue + dt/2) % 1
-    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
-end)
-
-y = y + 60 -- 下一個選項的 y 位置
-
-createOptionRow(contentFrame, y, "低配模式", function(row)
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0, 40, 0.7, 0) 
-    button.Position = UDim2.new(1, -70, 0.15, 0) 
-    button.BackgroundTransparency = 1 
-    button.Text = "◉"
-    button.TextScaled = true
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.Font = Enum.Font.SourceSansBold
-    button.Parent = row
-
-    local clicked = false
-
-    button.MouseButton1Click:Connect(function()
-        if clicked then return end
-        clicked = true
-        local tweenService = game:GetService("TweenService")
-        local shrinkInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local shrinkGoal = {Size = UDim2.new(0, 30, 0.7, 0)}
-        local growGoal = {Size = UDim2.new(0, 40, 0.7, 0)}
-        local shrinkTween = tweenService:Create(button, shrinkInfo, shrinkGoal)
-        local growTween = tweenService:Create(button, shrinkInfo, growGoal)
-        shrinkTween:Play()
-        shrinkTween.Completed:Connect(function()
-            growTween:Play()
-        end)
-        local flashInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local flashGoal = {TextColor3 = Color3.fromRGB(255, 255, 0)}
-        local restoreGoal = {TextColor3 = Color3.fromRGB(255, 255, 255)}
-        local flashTween = tweenService:Create(button, flashInfo, flashGoal)
-        local restoreTween = tweenService:Create(button, flashInfo, restoreGoal)
-        flashTween:Play()
-        flashTween.Completed:Connect(function()
-            restoreTween:Play()
-        end)
-        button.TextColor3 = Color3.fromRGB(150, 150, 150)
-        button.TextTransparency = 0.5
-        task.delay(1, function()
-            ApplyLowGraphics(true)
-        end)
-    end)
-end)
-
-y = y + 60
-
-createOptionRow(contentFrame, y, "Remove Fog", function(row)
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0, 40, 0.7, 0)
-    button.Position = UDim2.new(1, -70, 0.15, 0)
-    button.BackgroundTransparency = 1
-    button.Text = "◉"
-    button.TextScaled = true
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.Font = Enum.Font.SourceSansBold
-    button.Parent = row
-
-    local clicked = false
-    local tweenService = game:GetService("TweenService")
-
-    button.MouseButton1Click:Connect(function()
-        if clicked then return end
-        clicked = true
-
-        -- 縮放動畫
-        local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local shrinkTween = tweenService:Create(button, tweenInfo, {
-            Size = UDim2.new(0, 30, 0.7, 0)
-        })
-        local growTween = tweenService:Create(button, tweenInfo, {
-            Size = UDim2.new(0, 40, 0.7, 0)
-        })
-
-        shrinkTween:Play()
-        shrinkTween.Completed:Connect(function()
-            growTween:Play()
-        end)
-
-        -- 閃光效果
-        local flashTween = tweenService:Create(button, TweenInfo.new(0.15), {
-            TextColor3 = Color3.fromRGB(255, 255, 0)
-        })
-        local restoreTween = tweenService:Create(button, TweenInfo.new(0.15), {
-            TextColor3 = Color3.fromRGB(255, 255, 255)
-        })
-
-        flashTween:Play()
-        flashTween.Completed:Connect(function()
-            restoreTween:Play()
-        end)
-
-        -- 按過後的狀態
-        button.TextColor3 = Color3.fromRGB(150, 150, 150)
-        button.TextTransparency = 0.5
-
-        -- 執行功能（延遲一點更順）
-        task.delay(0.2, function()
-            RemoveFog()
-        end)
-    end)
-end)
-
-y = y + 60
-
-         -- ===== 彩虹大標題 =====
-local mainTitle = Instance.new("TextLabel")
-mainTitle.Size = UDim2.new(1,-20,0,60)
-mainTitle.Position = UDim2.new(0,10,0,y)
-mainTitle.BackgroundTransparency = 1
-mainTitle.Text = "遊戲內"
-mainTitle.Font = Enum.Font.SourceSansBold
-mainTitle.TextColor3 = Color3.fromRGB(255,255,255)
-mainTitle.TextXAlignment = Enum.TextXAlignment.Center
-mainTitle.TextYAlignment = Enum.TextYAlignment.Center
-mainTitle.TextSize = 40      -- ★★★ 在這裡改字大小 ★★★
-mainTitle.Parent = contentFrame
-
--- 彩虹效果
-local hue = 0
-RunService.RenderStepped:Connect(function(dt)
-    hue = (hue + dt/2) % 1
-    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
-end)
-
-y = y + 60 -- 下一個選項的 y 位置
-
--- ================= Anti AFK Button =================
-createOptionRow(contentFrame, y, "Anti AFK", function(row)
-
-    local switchBg = Instance.new("Frame")
-    switchBg.Size = UDim2.new(0, 60, 0.5, 0)
-    switchBg.Position = UDim2.new(1, -70, 0.25, 0)
-    switchBg.BackgroundColor3 = AntiAFK_ENABLED 
-        and Color3.fromRGB(0, 200, 0) 
-        or Color3.fromRGB(100, 100, 100)
-    switchBg.BorderSizePixel = 0
-    switchBg.Parent = row
-    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 20)
-
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.new(0, 28, 1, 0)
-    knob.Position = AntiAFK_ENABLED 
-        and UDim2.new(1, -28, 0, 0) 
-        or UDim2.new(0, 0, 0, 0)
-    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    knob.BorderSizePixel = 0
-    knob.Parent = switchBg
-    Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 20)
-
-    -- 點擊切換
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, 0, 1, 0)
-    button.BackgroundTransparency = 1
-    button.Text = ""
-    button.Parent = switchBg
-
-    button.MouseButton1Click:Connect(function()
-        AntiAFK_ENABLED = not AntiAFK_ENABLED
-
-        if AntiAFK_ENABLED then
-            enableAntiAFK()
-        else
-            disableAntiAFK()
-        end
-
-        -- 視覺更新
-        switchBg.BackgroundColor3 = AntiAFK_ENABLED
-            and Color3.fromRGB(0, 200, 0)
-            or Color3.fromRGB(100, 100, 100)
-
-        knob:TweenPosition(
-            AntiAFK_ENABLED and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0),
-            Enum.EasingDirection.Out,
-            Enum.EasingStyle.Quad,
-            0.15,
-            true
-        )
-    end)
-end)
-
-        y = y + 60
-
-createOptionRow(contentFrame, y, "移動速度", function(row)
-    local switchBg = Instance.new("Frame")
-    switchBg.Size = UDim2.new(0,60,0.5,0)
-    switchBg.Position = UDim2.new(1,-70,0.25,0)
-    switchBg.BackgroundColor3 = enabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
-    switchBg.BorderSizePixel = 0
-    switchBg.Parent = row
-    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
-
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.new(0,28,1,0)
-    knob.Position = enabled and UDim2.new(1,-28,0,0) or UDim2.new(0,0,0,0)
-    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    knob.BorderSizePixel = 0
-    knob.Parent = switchBg
-    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
-
-    local function toggle()
-        enabled = not enabled
-        toggleMove(enabled)
-        if enabled then
-            knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
-            switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
-        else
-            knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
-            switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
-        end
-    end
-
-    switchBg.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then toggle() end
-    end)
-end)
-
-y += 60
-
--- 速度調整
-createOptionRow(contentFrame, y, "速度調整:", function(row)
-    local inputBox = Instance.new("TextBox")
-    inputBox.Size = UDim2.new(0,80,0.6,0)
-    inputBox.Position = UDim2.new(0,130,0.2,0)
-    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
-    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
-    inputBox.TextScaled = true
-    inputBox.ClearTextOnFocus = false
-    inputBox.Text = tostring(SLIDE_MAGNITUDE)
-    inputBox.Parent = row
-
-    local slider = Instance.new("Frame")
-    slider.Size = UDim2.new(0,200,0.3,0)
-    slider.Position = UDim2.new(0,220,0.35,0)
-    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
-    slider.Parent = row
-
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.new(SLIDE_MAGNITUDE/MAX_SPEED,0,1,0)
-    fill.BackgroundColor3 = Color3.fromRGB(0,200,255)
-    fill.Parent = slider
-
-                    local maxLabel = Instance.new("TextLabel")
-                    maxLabel.Size = UDim2.new(0,80,1,0)
-                    maxLabel.Position = UDim2.new(0,430,0,0)
-                    maxLabel.BackgroundTransparency = 1
-                    maxLabel.Text = "(max:1000)"
-                    maxLabel.TextColor3 = Color3.fromRGB(200,200,200)
-                    maxLabel.TextScaled = true
-                    maxLabel.TextXAlignment = Enum.TextXAlignment.Left
-                    maxLabel.Parent = row
-
-    local dragging = false
-
-    slider.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
-    end)
-    slider.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-    end)
-    slider.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local mouseX = input.Position.X - slider.AbsolutePosition.X
-            mouseX = math.clamp(mouseX,0,slider.AbsoluteSize.X)
-            local speed = (mouseX/slider.AbsoluteSize.X)*MAX_SPEED
-            SLIDE_MAGNITUDE = speed
-            inputBox.Text = tostring(math.floor(speed))
-            fill.Size = UDim2.new(mouseX/slider.AbsoluteSize.X,0,1,0)
-        end
-    end)
-
-    inputBox.FocusLost:Connect(function(enterPressed)
-        if enterPressed then
-            local val = tonumber(inputBox.Text)
-            if val then
-                SLIDE_MAGNITUDE = math.clamp(val,0,MAX_SPEED)
-                inputBox.Text = tostring(math.floor(SLIDE_MAGNITUDE))
-                fill.Size = UDim2.new(SLIDE_MAGNITUDE/MAX_SPEED,0,1,0)
-            else
-                inputBox.Text = tostring(math.floor(SLIDE_MAGNITUDE))
-            end
-        end
-    end)
-end)
-
- y = y + 60
-
--- ================= 跳躍開關 (帶滑動動畫) =================
-createOptionRow(contentFrame, y, "跳躍開關", function(row)
-    local switchBg = Instance.new("Frame")
-    switchBg.Size = UDim2.new(0,60,0.5,0)
-    switchBg.Position = UDim2.new(1,-70,0.25,0)
-    switchBg.BackgroundColor3 = JumpSettings.Enabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
-    switchBg.BorderSizePixel = 0
-    switchBg.Parent = row
-    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
-
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.new(0,28,1,0)
-    knob.Position = JumpSettings.Enabled and UDim2.new(1,-28,0,0) or UDim2.new(0,0,0,0)
-    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    knob.BorderSizePixel = 0
-    knob.Parent = switchBg
-    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
-
-    local TweenService = game:GetService("TweenService")
-    
-    local function toggleSwitch()
-        JumpSettings.Enabled = not JumpSettings.Enabled
-
-        -- 背景顏色動畫
-        local bgTween = TweenService:Create(switchBg, TweenInfo.new(0.2), {BackgroundColor3 = JumpSettings.Enabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)})
-        bgTween:Play()
-
-        -- knob 滑動動畫
-        local knobTween = TweenService:Create(knob, TweenInfo.new(0.2), {Position = JumpSettings.Enabled and UDim2.new(1,-28,0,0) or UDim2.new(0,0,0,0)})
-        knobTween:Play()
-
-        -- 更新跳躍
-        updateJumpPower(game.Players.LocalPlayer)
-    end
-
-    -- 點擊切換
-    switchBg.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            toggleSwitch()
-        end
-    end)
-end)
-
-y = y + 60
-
--- 滑桿控制跳躍高度
-createOptionRow(contentFrame, y, "跳躍高度", function(row)
-    local inputBox = Instance.new("TextBox")
-    inputBox.Size = UDim2.new(0,80,0.6,0)
-    inputBox.Position = UDim2.new(0,130,0.2,0)
-    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
-    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
-    inputBox.TextScaled = true
-    inputBox.ClearTextOnFocus = false
-    inputBox.Text = tostring(JumpSettings.JumpPower)
-    inputBox.Parent = row
-
-    local slider = Instance.new("Frame")
-    slider.Size = UDim2.new(0,200,0.3,0)
-    slider.Position = UDim2.new(0,220,0.35,0)
-    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
-    slider.Parent = row
-
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.new(JumpSettings.JumpPower/JumpSettings.MaxJumpPower,0,1,0)
-    fill.BackgroundColor3 = Color3.fromRGB(255,200,0)
-    fill.Parent = slider
-
-    local maxLabel = Instance.new("TextLabel")
-    maxLabel.Size = UDim2.new(0,80,1,0)
-    maxLabel.Position = UDim2.new(0,430,0,0)
-    maxLabel.BackgroundTransparency = 1
-    maxLabel.Text = "(max:500)"
-    maxLabel.TextColor3 = Color3.fromRGB(200,200,200)
-    maxLabel.TextScaled = true
-    maxLabel.TextXAlignment = Enum.TextXAlignment.Left
-    maxLabel.Parent = row
-
-    -- 滑桿拖曳
-    local dragging = false
-    slider.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-        end
-    end)
-    slider.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    slider.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local relativeX = math.clamp(input.Position.X - slider.AbsolutePosition.X, 0, slider.AbsoluteSize.X)
-            JumpSettings.JumpPower = math.floor((relativeX / slider.AbsoluteSize.X) * JumpSettings.MaxJumpPower)
-            fill.Size = UDim2.new(JumpSettings.JumpPower/JumpSettings.MaxJumpPower,0,1,0)
-            inputBox.Text = tostring(JumpSettings.JumpPower)
-            updateJumpPower(game.Players.LocalPlayer)
-        end
-    end)
-    -- 文字框直接輸入
-    inputBox.FocusLost:Connect(function()
-        local val = tonumber(inputBox.Text)
-        if val then
-            JumpSettings.JumpPower = math.clamp(val,0,JumpSettings.MaxJumpPower)
-            fill.Size = UDim2.new(JumpSettings.JumpPower/JumpSettings.MaxJumpPower,0,1,0)
-            updateJumpPower(game.Players.LocalPlayer)
-        else
-            inputBox.Text = tostring(JumpSettings.JumpPower)
-        end
     end)
 end)
 
@@ -2366,15 +2137,13 @@ local mainTitle = Instance.new("TextLabel")
 mainTitle.Size = UDim2.new(1,-20,0,60)
 mainTitle.Position = UDim2.new(0,10,0,y)
 mainTitle.BackgroundTransparency = 1
-mainTitle.Text = "自動"
+mainTitle.Text = "提高FPS"
 mainTitle.Font = Enum.Font.SourceSansBold
 mainTitle.TextColor3 = Color3.fromRGB(255,255,255)
 mainTitle.TextXAlignment = Enum.TextXAlignment.Center
 mainTitle.TextYAlignment = Enum.TextYAlignment.Center
 mainTitle.TextSize = 40      -- ★★★ 在這裡改字大小 ★★★
 mainTitle.Parent = contentFrame
-
-        y = y + 60
 
 -- 彩虹效果
 local hue = 0
@@ -2383,14 +2152,140 @@ RunService.RenderStepped:Connect(function(dt)
     mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
 end)
 
+y = y + 60 -- 下一個選項的 y 位置
 
-local AutoBuso = true -- 初始狀態 ON
+createOptionRow(contentFrame, y, "低配模式", function(row)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 40, 0.7, 0) 
+    button.Position = UDim2.new(1, -70, 0.15, 0) 
+    button.BackgroundTransparency = 1 
+    button.Text = "◉"
+    button.TextScaled = true
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.SourceSansBold
+    button.Parent = row
 
-createOptionRow(contentFrame, y, "自動武裝色", function(row) 
+    local clicked = false
+
+    button.MouseButton1Click:Connect(function()
+        if clicked then return end
+        clicked = true
+        local tweenService = game:GetService("TweenService")
+        local shrinkInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local shrinkGoal = {Size = UDim2.new(0, 30, 0.7, 0)}
+        local growGoal = {Size = UDim2.new(0, 40, 0.7, 0)}
+        local shrinkTween = tweenService:Create(button, shrinkInfo, shrinkGoal)
+        local growTween = tweenService:Create(button, shrinkInfo, growGoal)
+        shrinkTween:Play()
+        shrinkTween.Completed:Connect(function()
+            growTween:Play()
+        end)
+        local flashInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local flashGoal = {TextColor3 = Color3.fromRGB(255, 255, 0)}
+        local restoreGoal = {TextColor3 = Color3.fromRGB(255, 255, 255)}
+        local flashTween = tweenService:Create(button, flashInfo, flashGoal)
+        local restoreTween = tweenService:Create(button, flashInfo, restoreGoal)
+        flashTween:Play()
+        flashTween.Completed:Connect(function()
+            restoreTween:Play()
+        end)
+        button.TextColor3 = Color3.fromRGB(150, 150, 150)
+        button.TextTransparency = 0.5
+        task.delay(1, function()
+            ApplyLowGraphics(true)
+        end)
+    end)
+end)
+
+y = y + 60
+
+createOptionRow(contentFrame, y, "Remove Fog", function(row)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 40, 0.7, 0)
+    button.Position = UDim2.new(1, -70, 0.15, 0)
+    button.BackgroundTransparency = 1
+    button.Text = "◉"
+    button.TextScaled = true
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.SourceSansBold
+    button.Parent = row
+
+    local clicked = false
+    local tweenService = game:GetService("TweenService")
+
+    button.MouseButton1Click:Connect(function()
+        if clicked then return end
+        clicked = true
+
+        -- 縮放動畫
+        local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local shrinkTween = tweenService:Create(button, tweenInfo, {
+            Size = UDim2.new(0, 30, 0.7, 0)
+        })
+        local growTween = tweenService:Create(button, tweenInfo, {
+            Size = UDim2.new(0, 40, 0.7, 0)
+        })
+
+        shrinkTween:Play()
+        shrinkTween.Completed:Connect(function()
+            growTween:Play()
+        end)
+
+        -- 閃光效果
+        local flashTween = tweenService:Create(button, TweenInfo.new(0.15), {
+            TextColor3 = Color3.fromRGB(255, 255, 0)
+        })
+        local restoreTween = tweenService:Create(button, TweenInfo.new(0.15), {
+            TextColor3 = Color3.fromRGB(255, 255, 255)
+        })
+
+        flashTween:Play()
+        flashTween.Completed:Connect(function()
+            restoreTween:Play()
+        end)
+
+        -- 按過後的狀態
+        button.TextColor3 = Color3.fromRGB(150, 150, 150)
+        button.TextTransparency = 0.5
+
+        -- 執行功能（延遲一點更順）
+        task.delay(0.2, function()
+            RemoveFog()
+        end)
+    end)
+end)
+
+y = y + 60
+
+         -- ===== 彩虹大標題 =====
+local mainTitle = Instance.new("TextLabel")
+mainTitle.Size = UDim2.new(1,-20,0,60)
+mainTitle.Position = UDim2.new(0,10,0,y)
+mainTitle.BackgroundTransparency = 1
+mainTitle.Text = "遊戲內"
+mainTitle.Font = Enum.Font.SourceSansBold
+mainTitle.TextColor3 = Color3.fromRGB(255,255,255)
+mainTitle.TextXAlignment = Enum.TextXAlignment.Center
+mainTitle.TextYAlignment = Enum.TextYAlignment.Center
+mainTitle.TextSize = 40      -- ★★★ 在這裡改字大小 ★★★
+mainTitle.Parent = contentFrame
+
+-- 彩虹效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+y = y + 60 -- 下一個選項的 y 位置
+
+-- ================= Anti AFK Button =================
+createOptionRow(contentFrame, y, "Anti AFK", function(row)
+
     local switchBg = Instance.new("Frame")
     switchBg.Size = UDim2.new(0, 60, 0.5, 0)
     switchBg.Position = UDim2.new(1, -70, 0.25, 0)
-    switchBg.BackgroundColor3 = AutoBuso 
+    switchBg.BackgroundColor3 = AntiAFK_ENABLED 
         and Color3.fromRGB(0, 200, 0) 
         or Color3.fromRGB(100, 100, 100)
     switchBg.BorderSizePixel = 0
@@ -2399,7 +2294,7 @@ createOptionRow(contentFrame, y, "自動武裝色", function(row)
 
     local knob = Instance.new("Frame")
     knob.Size = UDim2.new(0, 28, 1, 0)
-    knob.Position = AutoBuso 
+    knob.Position = AntiAFK_ENABLED 
         and UDim2.new(1, -28, 0, 0) 
         or UDim2.new(0, 0, 0, 0)
     knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -2407,6 +2302,7 @@ createOptionRow(contentFrame, y, "自動武裝色", function(row)
     knob.Parent = switchBg
     Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 20)
 
+    -- 點擊切換
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(1, 0, 1, 0)
     button.BackgroundTransparency = 1
@@ -2414,15 +2310,21 @@ createOptionRow(contentFrame, y, "自動武裝色", function(row)
     button.Parent = switchBg
 
     button.MouseButton1Click:Connect(function()
-        AutoBuso = not AutoBuso
+        AntiAFK_ENABLED = not AntiAFK_ENABLED
+
+        if AntiAFK_ENABLED then
+            enableAntiAFK()
+        else
+            disableAntiAFK()
+        end
 
         -- 視覺更新
-        switchBg.BackgroundColor3 = AutoBuso 
+        switchBg.BackgroundColor3 = AntiAFK_ENABLED
             and Color3.fromRGB(0, 200, 0)
             or Color3.fromRGB(100, 100, 100)
 
         knob:TweenPosition(
-            AutoBuso and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0),
+            AntiAFK_ENABLED and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0),
             Enum.EasingDirection.Out,
             Enum.EasingStyle.Quad,
             0.15,
@@ -2431,127 +2333,225 @@ createOptionRow(contentFrame, y, "自動武裝色", function(row)
     end)
 end)
 
--- 自動武裝色邏輯
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Player = Players.LocalPlayer
-local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+        y = y + 60
 
-task.spawn(function()
-    while task.wait(1) do
-        if AutoBuso then
-            pcall(function()
-                if Player.Character and not Player.Character:FindFirstChild("HasBuso") then
-                    CommF:InvokeServer("Buso")
-                end
-            end)
+createOptionRow(contentFrame, y, "移動速度", function(row)
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0,60,0.5,0)
+    switchBg.Position = UDim2.new(1,-70,0.25,0)
+    switchBg.BackgroundColor3 = enabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,28,1,0)
+    knob.Position = enabled and UDim2.new(1,-28,0,0) or UDim2.new(0,0,0,0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+
+    local function toggle()
+        enabled = not enabled
+        toggleMove(enabled)
+        if enabled then
+            knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
+        else
+            knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
         end
     end
+
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then toggle() end
+    end)
+end)
+
+y += 60
+
+-- 速度調整
+createOptionRow(contentFrame, y, "速度調整:", function(row)
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0,80,0.6,0)
+    inputBox.Position = UDim2.new(0,130,0.2,0)
+    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+    inputBox.TextScaled = true
+    inputBox.ClearTextOnFocus = false
+    inputBox.Text = tostring(SLIDE_MAGNITUDE)
+    inputBox.Parent = row
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,200,0.3,0)
+    slider.Position = UDim2.new(0,220,0.35,0)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = row
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(SLIDE_MAGNITUDE/MAX_SPEED,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(0,200,255)
+    fill.Parent = slider
+
+                    local maxLabel = Instance.new("TextLabel")
+                    maxLabel.Size = UDim2.new(0,80,1,0)
+                    maxLabel.Position = UDim2.new(0,430,0,0)
+                    maxLabel.BackgroundTransparency = 1
+                    maxLabel.Text = "(max:1000)"
+                    maxLabel.TextColor3 = Color3.fromRGB(200,200,200)
+                    maxLabel.TextScaled = true
+                    maxLabel.TextXAlignment = Enum.TextXAlignment.Left
+                    maxLabel.Parent = row
+
+    local dragging = false
+
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    slider.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mouseX = input.Position.X - slider.AbsolutePosition.X
+            mouseX = math.clamp(mouseX,0,slider.AbsoluteSize.X)
+            local speed = (mouseX/slider.AbsoluteSize.X)*MAX_SPEED
+            SLIDE_MAGNITUDE = speed
+            inputBox.Text = tostring(math.floor(speed))
+            fill.Size = UDim2.new(mouseX/slider.AbsoluteSize.X,0,1,0)
+        end
+    end)
+
+    inputBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            local val = tonumber(inputBox.Text)
+            if val then
+                SLIDE_MAGNITUDE = math.clamp(val,0,MAX_SPEED)
+                inputBox.Text = tostring(math.floor(SLIDE_MAGNITUDE))
+                fill.Size = UDim2.new(SLIDE_MAGNITUDE/MAX_SPEED,0,1,0)
+            else
+                inputBox.Text = tostring(math.floor(SLIDE_MAGNITUDE))
+            end
+        end
+    end)
+end)
+
+ y = y + 60
+
+-- ================= 跳躍開關 (帶滑動動畫) =================
+createOptionRow(contentFrame, y, "跳躍開關", function(row)
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0,60,0.5,0)
+    switchBg.Position = UDim2.new(1,-70,0.25,0)
+    switchBg.BackgroundColor3 = JumpSettings.Enabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,28,1,0)
+    knob.Position = JumpSettings.Enabled and UDim2.new(1,-28,0,0) or UDim2.new(0,0,0,0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+
+    local TweenService = game:GetService("TweenService")
+    
+    local function toggleSwitch()
+        JumpSettings.Enabled = not JumpSettings.Enabled
+
+        -- 背景顏色動畫
+        local bgTween = TweenService:Create(switchBg, TweenInfo.new(0.2), {BackgroundColor3 = JumpSettings.Enabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)})
+        bgTween:Play()
+
+        -- knob 滑動動畫
+        local knobTween = TweenService:Create(knob, TweenInfo.new(0.2), {Position = JumpSettings.Enabled and UDim2.new(1,-28,0,0) or UDim2.new(0,0,0,0)})
+        knobTween:Play()
+
+        -- 更新跳躍
+        updateJumpPower(game.Players.LocalPlayer)
+    end
+
+    -- 點擊切換
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggleSwitch()
+        end
+    end)
 end)
 
 y = y + 60
 
-createOptionRow(contentFrame, y, "自動v3", function(row)
-    local switchBg = Instance.new("Frame")
-    switchBg.Size = UDim2.new(0, 60, 0.5, 0)
-    switchBg.Position = UDim2.new(1, -70, 0.25, 0)
-    switchBg.BackgroundColor3 = Scripts["自動v3"].Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
-    switchBg.BorderSizePixel = 0
-    switchBg.Parent = row
-    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 20)
+-- 滑桿控制跳躍高度
+createOptionRow(contentFrame, y, "跳躍高度", function(row)
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0,80,0.6,0)
+    inputBox.Position = UDim2.new(0,130,0.2,0)
+    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+    inputBox.TextScaled = true
+    inputBox.ClearTextOnFocus = false
+    inputBox.Text = tostring(JumpSettings.JumpPower)
+    inputBox.Parent = row
 
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.new(0, 28, 1, 0)
-    knob.Position = Scripts["自動v3"].Enabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
-    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    knob.BorderSizePixel = 0
-    knob.Parent = switchBg
-    Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 20)
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,200,0.3,0)
+    slider.Position = UDim2.new(0,220,0.35,0)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = row
 
-    -- 點擊切換開關（帶滑動動畫）
-    switchBg.InputBegan:Connect(function(input)
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(JumpSettings.JumpPower/JumpSettings.MaxJumpPower,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(255,200,0)
+    fill.Parent = slider
+
+    local maxLabel = Instance.new("TextLabel")
+    maxLabel.Size = UDim2.new(0,80,1,0)
+    maxLabel.Position = UDim2.new(0,430,0,0)
+    maxLabel.BackgroundTransparency = 1
+    maxLabel.Text = "(max:500)"
+    maxLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    maxLabel.TextScaled = true
+    maxLabel.TextXAlignment = Enum.TextXAlignment.Left
+    maxLabel.Parent = row
+
+    -- 滑桿拖曳
+    local dragging = false
+    slider.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            Scripts["自動v3"].Enabled = not Scripts["自動v3"].Enabled
-            if Scripts["自動v3"].Enabled then
-                Scripts["自動v3"]:Func()
-            else
-                Scripts["自動v3"]:StopFunc()
-            end
-
-            -- 更新UI顏色
-            switchBg.BackgroundColor3 = Scripts["自動v3"].Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
-
-            -- Tween 滑塊滑動
-            local targetPos = Scripts["自動v3"].Enabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
-            local tween = TweenService:Create(knob, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos})
-            tween:Play()
+            dragging = true
         end
     end)
-end)
-        y = y + 60
-
-createOptionRow(contentFrame, y, "自動v4", function(row)
-
-    -- 背景
-    local switchBg = Instance.new("Frame")
-    switchBg.Size = UDim2.new(0, 60, 0.5, 0)
-    switchBg.Position = UDim2.new(1, -70, 0.25, 0)
-    switchBg.BackgroundColor3 = V4_ENABLED
-        and Color3.fromRGB(0, 200, 0)
-        or Color3.fromRGB(100, 100, 100)
-    switchBg.BorderSizePixel = 0
-    switchBg.Parent = row
-    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 20)
-
-    -- 滑塊
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.new(0, 28, 1, 0)
-    knob.Position = V4_ENABLED
-        and UDim2.new(1, -28, 0, 0)
-        or UDim2.new(0, 0, 0, 0)
-    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    knob.BorderSizePixel = 0
-    knob.Parent = switchBg
-    Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 20)
-
-    -- 點擊層
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.fromScale(1, 1)
-    button.BackgroundTransparency = 1
-    button.Text = ""
-    button.Parent = switchBg
-
-    -- ================= 點擊事件 =================
-    button.MouseButton1Click:Connect(function()
-        V4_ENABLED = not V4_ENABLED
-
-        -- 背景顏色
-        switchBg.BackgroundColor3 = V4_ENABLED
-            and Color3.fromRGB(0, 200, 0)
-            or Color3.fromRGB(100, 100, 100)
-
-        -- 滑塊動畫
-        TweenService:Create(
-            knob,
-            TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-            {
-                Position = V4_ENABLED
-                    and UDim2.new(1, -28, 0, 0)
-                    or UDim2.new(0, 0, 0, 0)
-            }
-        ):Play()
-
-        -- 呼叫 Awakening
-        local remote = getAwakeningRemote()
-        if remote then
-            remote:InvokeServer(V4_ENABLED)
+    slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    slider.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local relativeX = math.clamp(input.Position.X - slider.AbsolutePosition.X, 0, slider.AbsoluteSize.X)
+            JumpSettings.JumpPower = math.floor((relativeX / slider.AbsoluteSize.X) * JumpSettings.MaxJumpPower)
+            fill.Size = UDim2.new(JumpSettings.JumpPower/JumpSettings.MaxJumpPower,0,1,0)
+            inputBox.Text = tostring(JumpSettings.JumpPower)
+            updateJumpPower(game.Players.LocalPlayer)
+        end
+    end)
+    -- 文字框直接輸入
+    inputBox.FocusLost:Connect(function()
+        local val = tonumber(inputBox.Text)
+        if val then
+            JumpSettings.JumpPower = math.clamp(val,0,JumpSettings.MaxJumpPower)
+            fill.Size = UDim2.new(JumpSettings.JumpPower/JumpSettings.MaxJumpPower,0,1,0)
+            updateJumpPower(game.Players.LocalPlayer)
         else
-            warn("Awakening RemoteFunction not found")
+            inputBox.Text = tostring(JumpSettings.JumpPower)
         end
     end)
 end)
 
-        y = y + 60
+y = y + 60
 
             elseif index == 8 then
                     local y = 10
