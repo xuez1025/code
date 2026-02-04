@@ -712,7 +712,11 @@ local function removeLava()
     end
 end
 
-        -- ===== Xu-hub UI =====
+-- 假設你已有 Settings 表
+Settings = Settings or {}
+Settings.AutoBuso = true -- 一開始就 ON
+
+	   -- ===== Xu-hub UI =====
         local screenGui = Instance.new("ScreenGui")
         screenGui.Parent = PlayerGui
         screenGui.Name = "XuHubGui"
@@ -2382,6 +2386,88 @@ RunService.RenderStepped:Connect(function(dt)
     hue = (hue + dt/2) % 1
     mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
 end)
+
+createOptionRow(contentFrame, y, "自動武裝色", function(row) 
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0,60,0.5,0)
+    switchBg.Position = UDim2.new(1,-70,0.25,0)
+    switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0) -- 開啟狀態顏色
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+
+    local switchCorner = Instance.new("UICorner")
+    switchCorner.CornerRadius = UDim.new(0,20)
+    switchCorner.Parent = switchBg
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,28,1,0)
+    knob.Position = UDim2.new(1,-28,0,0) -- 開啟狀態位置
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+
+    local knobCorner = Instance.new("UICorner")
+    knobCorner.CornerRadius = UDim.new(0,20)
+    knobCorner.Parent = knob
+
+    local toggled = true -- 一開始就是 ON
+    local function toggleSwitch()
+        toggled = not toggled
+        Settings.AutoBuso = toggled
+        if toggled then
+            knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
+            -- 立即呼叫武裝色一次
+            pcall(function()
+                local Player = game:GetService("Players").LocalPlayer
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+                if Player.Character and not Player.Character:FindFirstChild("HasBuso") then
+                    CommF:InvokeServer("Buso")
+                end
+            end)
+        else
+            knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+        end
+    end
+
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then 
+            toggleSwitch() 
+        end
+    end)
+
+    -- 開關初始化完成後立即呼叫一次武裝色
+    if toggled then
+        pcall(function()
+            local Player = game:GetService("Players").LocalPlayer
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+            if Player.Character and not Player.Character:FindFirstChild("HasBuso") then
+                CommF:InvokeServer("Buso")
+            end
+        end)
+    end
+end)
+
+-- 自動武裝色邏輯循環（持續檢查）
+task.spawn(function()
+    while task.wait(1) do
+        if Settings.AutoBuso then
+            pcall(function()
+                local Player = game:GetService("Players").LocalPlayer
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+                if Player.Character and not Player.Character:FindFirstChild("HasBuso") then
+                    CommF:InvokeServer("Buso")
+                end
+            end)
+        end
+    end
+end)
+
+y = y + 60
 
 createOptionRow(contentFrame, y, "自動v3", function(row)
     local switchBg = Instance.new("Frame")
