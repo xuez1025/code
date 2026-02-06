@@ -1,17 +1,18 @@
 --==================================================
 -- Services
 --==================================================
-local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 
---==================================================
--- Player / Character
---==================================================
 local player = Players.LocalPlayer
-local PlayerGui = player:WaitForChild("PlayerGui")
+local playerGui = player:WaitForChild("PlayerGui")
 
+--==================================================
+-- Character
+--==================================================
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local hrp = character:WaitForChild("HumanoidRootPart")
@@ -20,211 +21,181 @@ player.CharacterAdded:Connect(function(char)
 	character = char
 	humanoid = char:WaitForChild("Humanoid")
 	hrp = char:WaitForChild("HumanoidRootPart")
-	isTeleporting = false
 end)
 
 --==================================================
--- Config / State
+-- 狀態 / 參數
 --==================================================
-local CHECK_INTERVAL = 1
-local DETECTION_RADIUS = 1000
-local COOLDOWN = 3
+local isFlying = false
+local flyConnection
+local baseSpeed = 0.1
+local hoverHeight = 50
+local RANGE_MAX = 2000
+local rangeValue = 2000
 
 local AutoTeleportEnabled = true
 local isTeleporting = false
-local lastTeleportTime = 0
+local COOLDOWN = 3
+local CHECK_INTERVAL = 1
+local DETECTION_RADIUS = 1000
 
 --==================================================
--- Teleport Logic
+-- GUI
 --==================================================
-local function getExitRoots()
-	local roots = {}
-	local map = Workspace:FindFirstChild("Map")
-	if not map then return roots end
+local screenGui = Instance.new("ScreenGui", playerGui)
 
-	local dungeon = map:FindFirstChild("Dungeon")
-	if not dungeon then return roots end
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 280, 0, 160)
+frame.Position = UDim2.new(0.5, -140, 0.5, -80)
+frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+frame.AnchorPoint = Vector2.new(0.5,0.5)
+frame.ClipsDescendants = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,15)
 
-	for _, folder in ipairs(dungeon:GetChildren()) do
-		if tonumber(folder.Name) then
-			local tp = folder:FindFirstChild("ExitTeleporter")
-			if tp and tp:FindFirstChild("Root") then
-				table.insert(roots, tp.Root)
+local titleLabel = Instance.new("TextLabel", frame)
+titleLabel.Size = UDim2.new(1,-50,0,30)
+titleLabel.Position = UDim2.new(0,10,0,10)
+titleLabel.Text = "Xu - Auto Dungeon"
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.new(1,1,1)
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextScaled = true
+
+local closeButton = Instance.new("TextButton", frame)
+closeButton.Size = UDim2.new(0,30,0,30)
+closeButton.Position = UDim2.new(1,-40,0,10)
+closeButton.Text = "X"
+closeButton.BackgroundColor3 = Color3.fromRGB(220,50,50)
+closeButton.TextColor3 = Color3.new(1,1,1)
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.TextScaled = true
+Instance.new("UICorner", closeButton).CornerRadius = UDim.new(0,8)
+
+local toggleButton = Instance.new("TextButton", frame)
+toggleButton.Size = UDim2.new(0,180,0,40)
+toggleButton.Position = UDim2.new(0.5,-90,0,60)
+toggleButton.Text = "飛行: OFF"
+toggleButton.BackgroundColor3 = Color3.fromRGB(255,0,0)
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.TextScaled = true
+Instance.new("UICorner", toggleButton)
+
+--==================================================
+-- 飛行找 NPC
+--==================================================
+local function stopFlying()
+	if flyConnection then flyConnection:Disconnect() end
+	isFlying = false
+	toggleButton.Text = "飛行: OFF"
+	toggleButton.BackgroundColor3 = Color3.fromRGB(255,0,0)
+end
+
+toggleButton.MouseButton1Click:Connect(function()
+	isFlying = not isFlying
+	if isFlying then
+		toggleButton.Text = "飛行: ON"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(0,255,0)
+
+		flyConnection = RunService.Heartbeat:Connect(function()
+			local enemies = Workspace:FindFirstChild("Enemies")
+			if not enemies then return end
+
+			local nearest, minDist = nil, math.huge
+			for _, npc in ipairs(enemies:GetChildren()) do
+				local hum = npc:FindFirstChild("Humanoid")
+				local root = npc:FindFirstChild("HumanoidRootPart") or npc:FindFirstChild("Head")
+				if hum and hum.Health > 0 and root then
+					local d = (root.Position - hrp.Position).Magnitude
+					if d < minDist and d <= rangeValue then
+						minDist = d
+						nearest = root
+					end
+				end
+			end
+
+			if nearest then
+				local target = nearest.Position + Vector3.new(0, hoverHeight, 0)
+				hrp.CFrame = CFrame.new(hrp.Position:Lerp(target, baseSpeed))
+			end
+		end)
+	else
+		stopFlying()
+	end
+end)
+
+--==================================================
+-- 自動過關傳送（無怪 + Boss 已死）
+--==================================================
+local function enemiesAlive()
+	local enemies = workspace:FindFirstChild("Enemies")
+	if not enemies then return false end
+	for _, npc in ipairs(enemies:GetChildren()) do
+		local hum = npc:FindFirstChild("Humanoid")
+		if hum and hum.Health > 0 then
+			return true
+		end
+	end
+	return false
+end
+
+local function bossAlive()
+	local boss = workspace:FindFirstChild("Boss")
+	if boss and boss:FindFirstChild("Humanoid") then
+		return boss.Humanoid.Health > 0
+	end
+	local enemies = workspace:FindFirstChild("Enemies")
+	if enemies then
+		for _, npc in ipairs(enemies:GetChildren()) do
+			if string.find(string.lower(npc.Name),"boss") then
+				local hum = npc:FindFirstChild("Humanoid")
+				if hum and hum.Health > 0 then
+					return true
+				end
 			end
 		end
 	end
-	return roots
+	return false
 end
 
 local function getClosestExit()
+	local map = Workspace:FindFirstChild("Map")
+	if not map then return nil end
+	local dungeon = map:FindFirstChild("Dungeon")
+	if not dungeon then return nil end
+
 	local closest, minDist = nil, math.huge
-	for _, root in ipairs(getExitRoots()) do
-		local d = (hrp.Position - root.Position).Magnitude
-		if d < minDist and d < DETECTION_RADIUS then
-			minDist = d
-			closest = root
+	for _, f in ipairs(dungeon:GetChildren()) do
+		if tonumber(f.Name) then
+			local tp = f:FindFirstChild("ExitTeleporter")
+			if tp and tp:FindFirstChild("Root") then
+				local d = (tp.Root.Position - hrp.Position).Magnitude
+				if d < minDist and d <= DETECTION_RADIUS then
+					minDist = d
+					closest = tp.Root
+				end
+			end
 		end
 	end
 	return closest
 end
 
-local function teleport(root)
-	if isTeleporting then return end
-	if tick() - lastTeleportTime < COOLDOWN then return end
-
-	isTeleporting = true
-	lastTeleportTime = tick()
-
-	humanoid.WalkSpeed = 0
-	humanoid.JumpPower = 0
-
-	local tween = TweenService:Create(
-		hrp,
-		TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ CFrame = root.CFrame }
-	)
-
-	tween.Completed:Once(function()
-		humanoid.WalkSpeed = 16
-		humanoid.JumpPower = 50
-		isTeleporting = false
-	end)
-
-	tween:Play()
-end
-
 task.spawn(function()
 	while task.wait(CHECK_INTERVAL) do
-		if not AutoTeleportEnabled then continue end
-		if humanoid.Health <= 0 then continue end
+		if enemiesAlive() then continue end
+		if bossAlive() then continue end
 
 		local exit = getClosestExit()
 		if exit then
-			teleport(exit)
+			hrp.CFrame = exit.CFrame
 		end
 	end
 end)
 
 --==================================================
--- GUI
+-- 關閉 GUI
 --==================================================
-if PlayerGui:FindFirstChild("AutoTeleportGUI") then
-	PlayerGui.AutoTeleportGUI:Destroy()
-end
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AutoTeleportGUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = PlayerGui
-
-local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 240, 0, 160)
-Main.Position = UDim2.new(0, 100, 0, 100)
-Main.BackgroundColor3 = Color3.fromRGB(35,35,35)
-Main.BorderSizePixel = 0
-Main.Parent = ScreenGui
-
-local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 30)
-TitleBar.BackgroundColor3 = Color3.fromRGB(25,25,25)
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = Main
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -70, 1, 0)
-Title.Position = UDim2.new(0, 10, 0, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "Auto Teleport"
-Title.TextColor3 = Color3.new(1,1,1)
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 18
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = TitleBar
-
-local function newButton(text, size, pos, color, parent)
-	local b = Instance.new("TextButton")
-	b.Text = text
-	b.Size = size
-	b.Position = pos
-	b.BackgroundColor3 = color
-	b.TextColor3 = Color3.new(1,1,1)
-	b.Font = Enum.Font.SourceSansBold
-	b.TextSize = 18
-	b.BorderSizePixel = 0
-	b.AutoButtonColor = true
-	b.Parent = parent
-	return b
-end
-
-local Minimize = newButton("-", UDim2.new(0,30,1,0), UDim2.new(1,-60,0,0), Color3.fromRGB(70,70,70), TitleBar)
-local Close    = newButton("X", UDim2.new(0,30,1,0), UDim2.new(1,-30,0,0), Color3.fromRGB(150,50,50), TitleBar)
-
-local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1,0,1,-30)
-Content.Position = UDim2.new(0,0,0,30)
-Content.BackgroundTransparency = 1
-Content.Parent = Main
-
-local Toggle = newButton(
-	"",
-	UDim2.new(1,-20,0,45),
-	UDim2.new(0,10,0,30),
-	Color3.fromRGB(60,120,60),
-	Content
-)
-
-local function refreshToggle()
-	if AutoTeleportEnabled then
-		Toggle.Text = "狀態：ON"
-		Toggle.BackgroundColor3 = Color3.fromRGB(60,120,60)
-	else
-		Toggle.Text = "狀態：OFF"
-		Toggle.BackgroundColor3 = Color3.fromRGB(120,60,60)
-	end
-end
-refreshToggle()
-
-Toggle.MouseButton1Click:Connect(function()
-	AutoTeleportEnabled = not AutoTeleportEnabled
-	refreshToggle()
-end)
-
--- Drag
-do
-	local dragging, startMouse, startPos
-	TitleBar.InputBegan:Connect(function(i)
-		if i.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
-			startMouse = i.Position
-			startPos = Main.Position
-		end
-	end)
-	UserInputService.InputEnded:Connect(function(i)
-		if i.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = false
-		end
-	end)
-	UserInputService.InputChanged:Connect(function(i)
-		if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-			local d = i.Position - startMouse
-			Main.Position = UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + d.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + d.Y
-			)
-		end
-	end)
-end
-
-local minimized = false
-Minimize.MouseButton1Click:Connect(function()
-	minimized = not minimized
-	Content.Visible = not minimized
-	Main.Size = minimized and UDim2.new(0,240,0,30) or UDim2.new(0,240,0,160)
-end)
-
-Close.MouseButton1Click:Connect(function()
-	ScreenGui:Destroy()
+closeButton.MouseButton1Click:Connect(function()
+	stopFlying()
+	screenGui:Destroy()
 end)
