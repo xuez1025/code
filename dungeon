@@ -1,0 +1,246 @@
+--==================================================
+-- Services
+--==================================================
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+
+--==================================================
+-- Player / Character
+--==================================================
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+player.CharacterAdded:Connect(function(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	hrp = char:WaitForChild("HumanoidRootPart")
+	isTeleporting = false
+end)
+
+--==================================================
+-- Config
+--==================================================
+local CHECK_INTERVAL = 1
+local DETECTION_RADIUS = 1000
+local COOLDOWN = 3
+
+--==================================================
+-- State
+--==================================================
+local AutoTeleportEnabled = true
+local isTeleporting = false
+local lastTeleportTime = 0
+
+--==================================================
+-- Dungeon Logic
+--==================================================
+local function getExitTeleporters()
+	local list = {}
+	local map = Workspace:FindFirstChild("Map")
+	if not map then return list end
+
+	local dungeon = map:FindFirstChild("Dungeon")
+	if not dungeon then return list end
+
+	for _, folder in ipairs(dungeon:GetChildren()) do
+		local level = tonumber(folder.Name)
+		if level then
+			local tp = folder:FindFirstChild("ExitTeleporter")
+			if tp and tp:FindFirstChild("Root") then
+				table.insert(list, {
+					level = level,
+					root = tp.Root
+				})
+			end
+		end
+	end
+	return list
+end
+
+local function getCurrentExit()
+	local closest
+	local minDist = math.huge
+
+	for _, t in ipairs(getExitTeleporters()) do
+		local dist = (hrp.Position - t.root.Position).Magnitude
+		if dist < minDist and dist < DETECTION_RADIUS then
+			minDist = dist
+			closest = t
+		end
+	end
+
+	return closest
+end
+
+local function teleportTo(root)
+	if isTeleporting then return end
+	if tick() - lastTeleportTime < COOLDOWN then return end
+
+	isTeleporting = true
+	lastTeleportTime = tick()
+
+	humanoid.WalkSpeed = 0
+	humanoid.JumpPower = 0
+
+	local tween = TweenService:Create(
+		hrp,
+		TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ CFrame = root.CFrame }
+	)
+
+	tween.Completed:Once(function()
+		humanoid.WalkSpeed = 16
+		humanoid.JumpPower = 50
+		isTeleporting = false
+	end)
+
+	tween:Play()
+end
+
+--==================================================
+-- Main Loop (過關卡)
+--==================================================
+task.spawn(function()
+	while task.wait(CHECK_INTERVAL) do
+		if not AutoTeleportEnabled then continue end
+		if humanoid.Health <= 0 then continue end
+
+		local exit = getCurrentExit()
+		if exit then
+			teleportTo(exit.root)
+		end
+	end
+end)
+
+--==================================================
+-- GUI
+--==================================================
+local PlayerGui = player:WaitForChild("PlayerGui")
+if PlayerGui:FindFirstChild("AutoTeleportGUI") then
+	PlayerGui.AutoTeleportGUI:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AutoTeleportGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 220, 0, 150)
+Main.Position = UDim2.new(0, 100, 0, 100)
+Main.BackgroundColor3 = Color3.fromRGB(35,35,35)
+Main.BorderSizePixel = 0
+Main.Parent = ScreenGui
+
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.BackgroundColor3 = Color3.fromRGB(25,25,25)
+TitleBar.Parent = Main
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -60, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Auto Teleport"
+Title.TextColor3 = Color3.new(1,1,1)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 18
+Title.TextXAlignment = Left
+Title.Parent = TitleBar
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.new(0, 30, 1, 0)
+Close.Position = UDim2.new(1, -30, 0, 0)
+Close.Text = "X"
+Close.TextColor3 = Color3.new(1,1,1)
+Close.BackgroundColor3 = Color3.fromRGB(150,50,50)
+Close.Parent = TitleBar
+
+local Minimize = Instance.new("TextButton")
+Minimize.Size = UDim2.new(0, 30, 1, 0)
+Minimize.Position = UDim2.new(1, -60, 0, 0)
+Minimize.Text = "-"
+Minimize.TextColor3 = Color3.new(1,1,1)
+Minimize.BackgroundColor3 = Color3.fromRGB(70,70,70)
+Minimize.Parent = TitleBar
+
+local Content = Instance.new("Frame")
+Content.Size = UDim2.new(1, 0, 1, -30)
+Content.Position = UDim2.new(0, 0, 0, 30)
+Content.BackgroundTransparency = 1
+Content.Parent = Main
+
+local Toggle = Instance.new("TextButton")
+Toggle.Size = UDim2.new(1, -20, 0, 40)
+Toggle.Position = UDim2.new(0, 10, 0, 30)
+Toggle.Font = Enum.Font.SourceSansBold
+Toggle.TextSize = 20
+Toggle.TextColor3 = Color3.new(1,1,1)
+Toggle.Parent = Content
+
+local function updateToggle()
+	if AutoTeleportEnabled then
+		Toggle.Text = "狀態：ON"
+		Toggle.BackgroundColor3 = Color3.fromRGB(60,120,60)
+	else
+		Toggle.Text = "狀態：OFF"
+		Toggle.BackgroundColor3 = Color3.fromRGB(120,60,60)
+	end
+end
+updateToggle()
+
+Toggle.MouseButton1Click:Connect(function()
+	AutoTeleportEnabled = not AutoTeleportEnabled
+	updateToggle()
+end)
+
+--==================================================
+-- GUI Drag
+--==================================================
+do
+	local dragging, dragStart, startPos
+
+	TitleBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = Main.Position
+		end
+	end)
+
+	TitleBar.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - dragStart
+			Main.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
+
+--==================================================
+-- GUI Buttons
+--==================================================
+local minimized = false
+Minimize.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	Content.Visible = not minimized
+	Main.Size = minimized and UDim2.new(0,220,0,30) or UDim2.new(0,220,0,150)
+end)
+
+Close.MouseButton1Click:Connect(function()
+	ScreenGui:Destroy()
+end)
