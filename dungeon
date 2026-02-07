@@ -2,18 +2,15 @@
 -- Services
 --==================================================
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
+--==================================================
+-- Player & Character
+--==================================================
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
---==================================================
--- Character
---==================================================
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local hrp = character:WaitForChild("HumanoidRootPart")
@@ -25,208 +22,26 @@ player.CharacterAdded:Connect(function(char)
 end)
 
 --==================================================
--- 狀態 / 參數
+-- Config / State
 --==================================================
-local isFlying = false
-local flyConnection
-local baseSpeed = 0.1
-local hoverHeight = 50
-local RANGE_MAX = 2000
-local rangeValue = 2000
-
-local AutoTeleportEnabled = true
-local isTeleporting = false
-local COOLDOWN = 3
 local CHECK_INTERVAL = 1
 local DETECTION_RADIUS = 1000
-
--- 快速攻擊設定
-local FastAttackSettings = {
-    AutoClick = true,
-    Distance = 200, -- 預設攻擊距離
-    AttackInterval = 0.01,
-    MaxTargets = 20
-}
-
-local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
-local RegisterHit = Net:WaitForChild("RE/RegisterHit")
-local EnemiesFolder = workspace:WaitForChild("Enemies")
-local CharactersFolder = workspace:WaitForChild("Characters")
+local AutoTeleportEnabled = true
+local isTeleporting = false
 
 --==================================================
--- GUI
---==================================================
-local screenGui = Instance.new("ScreenGui", playerGui)
-screenGui.ResetOnSpawn = false
-
-local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 300, 0, 260)
-frame.Position = UDim2.new(0.5, -150, 0.5, -130)
-frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
-frame.AnchorPoint = Vector2.new(0.5,0.5)
-frame.ClipsDescendants = true
-frame.Active = true
-
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,15)
-
--- 可拖動功能
-do
-    local dragging
-    local dragInput
-    local dragStart
-    local startPos
-
-    local function update(input)
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            update(input)
-        end
-    end)
-end
-
--- 標題
-local titleLabel = Instance.new("TextLabel", frame)
-titleLabel.Size = UDim2.new(1,-50,0,30)
-titleLabel.Position = UDim2.new(0,10,0,10)
-titleLabel.Text = "Xu Dungeon"
-titleLabel.BackgroundTransparency = 1
-titleLabel.TextColor3 = Color3.new(1,1,1)
-titleLabel.Font = Enum.Font.SourceSansBold
-titleLabel.TextScaled = true
-
--- 關閉按鈕
-local closeButton = Instance.new("TextButton", frame)
-closeButton.Size = UDim2.new(0,30,0,30)
-closeButton.Position = UDim2.new(1,-40,0,10)
-closeButton.Text = "X"
-closeButton.BackgroundColor3 = Color3.fromRGB(220,50,50)
-closeButton.TextColor3 = Color3.new(1,1,1)
-closeButton.Font = Enum.Font.SourceSansBold
-closeButton.TextScaled = true
-Instance.new("UICorner", closeButton).CornerRadius = UDim.new(0,8)
-closeButton.MouseButton1Click:Connect(function()
-    if flyConnection then flyConnection:Disconnect() end
-    screenGui:Destroy()
-end)
-
--- 縮小按鈕
-local minimizeBtn = Instance.new("TextButton", frame)
-minimizeBtn.Size = UDim2.new(0,30,0,30)
-minimizeBtn.Position = UDim2.new(1,-80,0,10)
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
-minimizeBtn.TextColor3 = Color3.new(1,1,1)
-minimizeBtn.Text = "-"
-minimizeBtn.TextScaled = true
-Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0,8)
-
-local minimizedFrame
-minimizeBtn.MouseButton1Click:Connect(function()
-    frame.Visible = false
-    minimizedFrame = Instance.new("TextButton")
-    minimizedFrame.Size = UDim2.fromOffset(50,50)
-    minimizedFrame.Position = frame.Position
-    minimizedFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    minimizedFrame.BorderSizePixel = 0
-    minimizedFrame.Text = "Xu"
-    minimizedFrame.TextColor3 = Color3.fromRGB(255,255,255)
-    minimizedFrame.TextScaled = true
-    minimizedFrame.Parent = screenGui
-    minimizedFrame.MouseButton1Click:Connect(function()
-        frame.Visible = true
-        minimizedFrame:Destroy()
-        minimizedFrame = nil
-    end)
-end)
-
---==================================================
--- 飛行控制
---==================================================
-local toggleFlyBtn = Instance.new("TextButton", frame)
-toggleFlyBtn.Size = UDim2.new(0,180,0,40)
-toggleFlyBtn.Position = UDim2.new(0.5,-90,0,50)
-toggleFlyBtn.Text = "OFF"
-toggleFlyBtn.BackgroundColor3 = Color3.fromRGB(255,0,0)
-toggleFlyBtn.TextColor3 = Color3.new(1,1,1)
-toggleFlyBtn.Font = Enum.Font.SourceSansBold
-toggleFlyBtn.TextScaled = true
-Instance.new("UICorner", toggleFlyBtn)
-
-local function stopFlying()
-    if flyConnection then flyConnection:Disconnect() end
-    isFlying = false
-    toggleFlyBtn.Text = "OFF"
-    toggleFlyBtn.BackgroundColor3 = Color3.fromRGB(255,0,0)
-end
-
-toggleFlyBtn.MouseButton1Click:Connect(function()
-    isFlying = not isFlying
-    if isFlying then
-        toggleFlyBtn.Text = "ON"
-        toggleFlyBtn.BackgroundColor3 = Color3.fromRGB(0,255,0)
-        flyConnection = RunService.Heartbeat:Connect(function()
-            local enemies = Workspace:FindFirstChild("Enemies")
-            if not enemies then return end
-            local nearest, minDist = nil, math.huge
-            for _, npc in ipairs(enemies:GetChildren()) do
-                local hum = npc:FindFirstChild("Humanoid")
-                local root = npc:FindFirstChild("HumanoidRootPart") or npc:FindFirstChild("Head")
-                if hum and hum.Health > 0 and root then
-                    local d = (root.Position - hrp.Position).Magnitude
-                    if d < minDist and d <= rangeValue then
-                        minDist = d
-                        nearest = root
-                    end
-                end
-            end
-            if nearest then
-                local target = nearest.Position + Vector3.new(0, hoverHeight, 0)
-                hrp.CFrame = CFrame.new(hrp.Position:Lerp(target, baseSpeed))
-            end
-        end)
-    else
-        stopFlying()
-    end
-end)
-
---==================================================
--- 自動過關
+-- Utility functions
 --==================================================
 local function enemiesAlive()
     local enemies = workspace:FindFirstChild("Enemies")
     if not enemies then return false end
     for _, npc in ipairs(enemies:GetChildren()) do
         local hum = npc:FindFirstChild("Humanoid")
-        if hum and hum.Health > 0 then
-            return true
+        local root = npc:FindFirstChild("HumanoidRootPart") or npc:FindFirstChild("Head")
+        if hum and hum.Health > 0 and root then
+            if (root.Position - hrp.Position).Magnitude <= DETECTION_RADIUS then
+                return true
+            end
         end
     end
     return false
@@ -235,7 +50,7 @@ end
 local function bossAlive()
     local boss = workspace:FindFirstChild("Boss")
     if boss and boss:FindFirstChild("Humanoid") then
-        return boss.Humanoid.Health > 0
+        if boss.Humanoid.Health > 0 then return true end
     end
     local enemies = workspace:FindFirstChild("Enemies")
     if enemies then
@@ -249,6 +64,10 @@ local function bossAlive()
         end
     end
     return false
+end
+
+local function canTeleport()
+    return not enemiesAlive() and not bossAlive()
 end
 
 local function getClosestExit()
@@ -273,138 +92,83 @@ local function getClosestExit()
     return closest
 end
 
-task.spawn(function()
-    while task.wait(CHECK_INTERVAL) do
-        if enemiesAlive() then continue end
-        if bossAlive() then continue end
-        local exit = getClosestExit()
-        if exit then
-            hrp.CFrame = exit.CFrame
-        end
-    end
-end)
-
--- 快速攻擊開關
-local faToggleBtn = Instance.new("TextButton", frame)
-faToggleBtn.Size = UDim2.new(1,-20,0,40)
-faToggleBtn.Position = UDim2.new(0,10,0,100)
-faToggleBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
-faToggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
-faToggleBtn.TextScaled = true
-faToggleBtn.Text = "自動攻擊:ON"
-
-faToggleBtn.MouseButton1Click:Connect(function()
-    FastAttackSettings.AutoClick = not FastAttackSettings.AutoClick
-    faToggleBtn.Text = "自動攻擊"..(FastAttackSettings.AutoClick and "ON" or "OFF")
-end)
-
--- 攻擊距離標籤
-local faLabel = Instance.new("TextLabel", frame)
-faLabel.Size = UDim2.new(0,100,0,25)
-faLabel.Position = UDim2.new(0,10,0,150)
-faLabel.BackgroundTransparency = 1
-faLabel.TextColor3 = Color3.fromRGB(255,255,0)
-faLabel.TextScaled = true
-faLabel.Text = "距離(限大佛):"
-faLabel.TextXAlignment = Enum.TextXAlignment.Left
-
--- 攻擊距離輸入框
-local faInput = Instance.new("TextBox", frame)
-faInput.Size = UDim2.new(0,60,0,25)
-faInput.Position = UDim2.new(0,120,0,150)
-faInput.BackgroundColor3 = Color3.fromRGB(70,70,70)
-faInput.TextColor3 = Color3.fromRGB(255,255,255)
-faInput.TextScaled = true
-faInput.ClearTextOnFocus = false
-faInput.Text = tostring(FastAttackSettings.Distance)
-
--- 滑桿
-local faSlider = Instance.new("Frame", frame)
-faSlider.Size = UDim2.new(1,-40,0,30)
-faSlider.Position = UDim2.new(0,10,0,180)
-faSlider.BackgroundColor3 = Color3.fromRGB(100,100,100)
-faSlider.BorderSizePixel = 0
-
-local faFill = Instance.new("Frame", faSlider)
-faFill.Size = UDim2.new(FastAttackSettings.Distance/1000,0,1,0)
-faFill.BackgroundColor3 = Color3.fromRGB(255,200,0)
-faFill.BorderSizePixel = 0
-
--- 滑桿互動
-local draggingFA = false
-local MAX_DISTANCE = 1000
-
-faSlider.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingFA = true
-    end
-end)
-faSlider.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingFA = false
-    end
-end)
-faSlider.InputChanged:Connect(function(input)
-    if draggingFA and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local mouseX = input.Position.X - faSlider.AbsolutePosition.X
-        mouseX = math.clamp(mouseX,0,faSlider.AbsoluteSize.X)
-        local distance = (mouseX/faSlider.AbsoluteSize.X) * MAX_DISTANCE
-        FastAttackSettings.Distance = distance
-        faFill.Size = UDim2.new(distance/MAX_DISTANCE,0,1,0)
-        faInput.Text = tostring(math.floor(distance))
-    end
-end)
-
--- 輸入框互動
-faInput.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        local val = tonumber(faInput.Text)
-        if val then
-            val = math.clamp(val,0,MAX_DISTANCE)
-            FastAttackSettings.Distance = val
-            faFill.Size = UDim2.new(val/MAX_DISTANCE,0,1,0)
-            faInput.Text = tostring(math.floor(val))
-        else
-            faInput.Text = tostring(math.floor(FastAttackSettings.Distance))
-        end
-    end
-end)
-
---==================================================
--- 核心快速攻擊
---==================================================
-local function IsAlive(char)
-    local hum = char:FindFirstChild("Humanoid")
-    return hum and hum.Health > 0
+local function teleportToExit(exitRoot)
+    if isTeleporting then return end
+    isTeleporting = true
+    humanoid.WalkSpeed = 0
+    humanoid.JumpPower = 0
+    hrp.CFrame = exitRoot.CFrame
+    humanoid.WalkSpeed = 16
+    humanoid.JumpPower = 50
+    isTeleporting = false
 end
 
+--==================================================
+-- Main auto-teleport loop
+--==================================================
 task.spawn(function()
-    while true do
-        if FastAttackSettings.AutoClick then
-            local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                local targets = {}
-                for _, folder in ipairs({EnemiesFolder, CharactersFolder}) do
-                    for _, obj in ipairs(folder:GetChildren()) do
-                        if obj ~= player.Character then
-                            local head = obj:FindFirstChild("Head")
-                            if head and IsAlive(obj) then
-                                local dist = (head.Position - root.Position).Magnitude
-                                if dist <= FastAttackSettings.Distance then
-                                    table.insert(targets,{obj,head})
-                                    if #targets >= FastAttackSettings.MaxTargets then break end
-                                end
-                            end
-                        end
-                    end
-                    if #targets >= FastAttackSettings.MaxTargets then break end
-                end
-                if #targets > 0 then
-                    RegisterAttack:FireServer(0)
-                    RegisterHit:FireServer(targets[1][2], targets)
-                end
+    while task.wait(CHECK_INTERVAL) do
+        if not AutoTeleportEnabled then continue end
+        if not character or not character:IsDescendantOf(Workspace) or humanoid.Health <= 0 then continue end
+        if canTeleport() then
+            local exit = getClosestExit()
+            if exit then
+                teleportToExit(exit)
             end
         end
-        task.wait(FastAttackSettings.AttackInterval)
     end
+end)
+
+--==================================================
+-- GUI
+--==================================================
+local screenGui = Instance.new("ScreenGui", playerGui)
+screenGui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 250, 0, 120)
+frame.Position = UDim2.new(0, 50, 0, 50)
+frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+frame.Active = true
+frame.Draggable = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
+
+-- Title
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, -50, 0, 30)
+title.Position = UDim2.new(0,10,0,5)
+title.BackgroundTransparency = 1
+title.Text = "Auto Teleport"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.Font = Enum.Font.SourceSansBold
+title.TextScaled = true
+
+-- Toggle Button
+local toggleBtn = Instance.new("TextButton", frame)
+toggleBtn.Size = UDim2.new(1, -20, 0, 40)
+toggleBtn.Position = UDim2.new(0,10,0,40)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toggleBtn.Font = Enum.Font.SourceSansBold
+toggleBtn.TextScaled = true
+toggleBtn.Text = "停止自動傳送"
+
+toggleBtn.MouseButton1Click:Connect(function()
+    AutoTeleportEnabled = not AutoTeleportEnabled
+    toggleBtn.Text = AutoTeleportEnabled and "停止自動傳送" or "啟動自動傳送"
+end)
+
+-- Close Button
+local closeBtn = Instance.new("TextButton", frame)
+closeBtn.Size = UDim2.new(0,30,0,30)
+closeBtn.Position = UDim2.new(1,-35,0,5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(220,50,50)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+closeBtn.Font = Enum.Font.SourceSansBold
+closeBtn.TextScaled = true
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0,8)
+closeBtn.MouseButton1Click:Connect(function()
+    AutoTeleportEnabled = false
+    screenGui:Destroy()
 end)
