@@ -1,0 +1,124 @@
+-- ===== Services =====
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ===== 座標設定 =====
+local INTERMEDIATE_CFRAME = CFrame.new(-7906, 5546, -379) -- 經過點
+local TARGET_POSITION = Vector3.new(-1880, 25, -3320)     -- 最終點
+
+-- ===== GUI =====
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "SmartTeleportGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 170, 0, 60)
+Frame.Position = UDim2.new(1, -190, 1, -110)
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Frame.BorderSizePixel = 0
+Frame.Parent = ScreenGui
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
+
+local Button = Instance.new("TextButton")
+Button.Size = UDim2.new(1, -20, 1, -20)
+Button.Position = UDim2.new(0, 10, 0, 10)
+Button.Text = "前往目標"
+Button.Font = Enum.Font.GothamBold
+Button.TextSize = 18
+Button.TextColor3 = Color3.new(1, 1, 1)
+Button.BackgroundColor3 = Color3.fromRGB(70, 130, 255)
+Button.Parent = Frame
+Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 8)
+
+-- ===== 飛行與 Noclip 設定 =====
+local FlyEnabled = false
+local NoclipEnabled = false
+local FlySpeed = 350
+local CurrentTargetPosition = nil
+
+local function EnableFly()
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = true end
+    end
+end
+
+local function DisableFly()
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = false end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then hrp.Velocity = Vector3.zero end
+    end
+end
+
+-- Noclip
+RunService.Stepped:Connect(function()
+    if NoclipEnabled then
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- 飛行移動
+RunService.RenderStepped:Connect(function()
+    if FlyEnabled and CurrentTargetPosition then
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local direction = CurrentTargetPosition - hrp.Position
+            local distance = direction.Magnitude
+
+            if distance > 1 then
+                hrp.Velocity = direction.Unit * FlySpeed
+            else
+                hrp.Velocity = Vector3.zero
+                FlyEnabled = false
+                DisableFly()
+                NoclipEnabled = false
+                print("已到達目標！")
+            end
+        end
+    end
+end)
+
+-- ===== 核心邏輯 =====
+local function SmartTeleport()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+
+    local distanceToIntermediate = (hrp.Position - INTERMEDIATE_CFRAME.Position).Magnitude
+    local distanceToTarget = (hrp.Position - TARGET_POSITION).Magnitude
+    local distanceIntermediateToTarget = (INTERMEDIATE_CFRAME.Position - TARGET_POSITION).Magnitude
+
+    if distanceToTarget <= distanceIntermediateToTarget then
+        -- 如果目前位置已經比經過點更接近目標，直接飛行到終點
+        CurrentTargetPosition = TARGET_POSITION
+        FlyEnabled = true
+        NoclipEnabled = true
+        EnableFly()
+        print("直接飛行至終點...")
+    else
+        -- 先傳送到經過點，再飛行到終點
+        hrp.CFrame = INTERMEDIATE_CFRAME
+        print("傳送到經過點...")
+        task.wait(0.2) -- 小延遲確保傳送完成
+        CurrentTargetPosition = TARGET_POSITION
+        FlyEnabled = true
+        NoclipEnabled = true
+        EnableFly()
+        print("經過點完成，飛行至終點...")
+    end
+end
+
+Button.MouseButton1Click:Connect(SmartTeleport)
