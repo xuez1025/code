@@ -712,6 +712,131 @@ local function removeLava()
     end
 end
 
+--==================================================
+-- Player & Character
+--==================================================
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local character
+local humanoid
+local hrp
+
+local function getCharacterParts()
+    character = player.Character
+    if not character then return false end
+    humanoid = character:FindFirstChild("Humanoid")
+    hrp = character:FindFirstChild("HumanoidRootPart")
+    if humanoid and hrp then
+        return true
+    end
+    return false
+end
+
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = char:WaitForChild("Humanoid")
+    hrp = char:WaitForChild("HumanoidRootPart")
+end)
+
+--==================================================
+-- Config / State
+--==================================================
+local CHECK_INTERVAL = 1
+local DETECTION_RADIUS = 1000
+local AutoTeleportEnabled = false
+local isTeleporting = false
+
+--==================================================
+-- Core Functions
+--==================================================
+local function enemiesAlive()
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return false end
+    for _, npc in ipairs(enemies:GetChildren()) do
+        local hum = npc:FindFirstChild("Humanoid")
+        local root = npc:FindFirstChild("HumanoidRootPart") or npc:FindFirstChild("Head")
+        if hum and hum.Health > 0 and root and hrp then
+            if (root.Position - hrp.Position).Magnitude <= DETECTION_RADIUS then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function bossAlive()
+    local boss = workspace:FindFirstChild("Boss")
+    if boss and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+        return true
+    end
+    local enemies = workspace:FindFirstChild("Enemies")
+    if enemies then
+        for _, npc in ipairs(enemies:GetChildren()) do
+            if string.find(string.lower(npc.Name), "boss") then
+                local hum = npc:FindFirstChild("Humanoid")
+                if hum and hum.Health > 0 then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function canTeleport()
+    return not enemiesAlive() and not bossAlive()
+end
+
+local function getClosestExit()
+    local map = workspace:FindFirstChild("Map")
+    if not map then return nil end
+    local dungeon = map:FindFirstChild("Dungeon")
+    if not dungeon then return nil end
+
+    local closest, minDist = nil, math.huge
+    for _, f in ipairs(dungeon:GetChildren()) do
+        if tonumber(f.Name) then
+            local tp = f:FindFirstChild("ExitTeleporter")
+            if tp and tp:FindFirstChild("Root") then
+                local d = (tp.Root.Position - hrp.Position).Magnitude
+                if d < minDist then
+                    minDist = d
+                    closest = tp.Root
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function teleportToExit(exitRoot)
+    if isTeleporting or not exitRoot then return end
+    isTeleporting = true
+    humanoid.WalkSpeed = 0
+    humanoid.JumpPower = 0
+    hrp.CFrame = exitRoot.CFrame
+    humanoid.WalkSpeed = 16
+    humanoid.JumpPower = 50
+    isTeleporting = false
+end
+
+--==================================================
+-- Auto-Teleport Loop
+--==================================================
+task.spawn(function()
+    while task.wait(CHECK_INTERVAL) do
+        if not AutoTeleportEnabled then continue end
+        if not getCharacterParts() or humanoid.Health <= 0 then continue end
+        if canTeleport() then
+            local exit = getClosestExit()
+            if exit then
+                teleportToExit(exit)
+            end
+        end
+    end
+end)
+
 	   -- ===== Xu-hub UI =====
         local screenGui = Instance.new("ScreenGui")
         screenGui.Parent = PlayerGui
@@ -1995,6 +2120,69 @@ y = y + 60 -- 下一個選項的 y 位置
         end)
 
         y = y + 60
+
+         -- ===== 彩虹大標題 =====
+local mainTitle = Instance.new("TextLabel")
+mainTitle.Size = UDim2.new(1,-20,0,60)
+mainTitle.Position = UDim2.new(0,10,0,y)
+mainTitle.BackgroundTransparency = 1
+mainTitle.Text = "Dungeon"
+mainTitle.Font = Enum.Font.SourceSansBold
+mainTitle.TextColor3 = Color3.fromRGB(255,255,255)
+mainTitle.TextXAlignment = Enum.TextXAlignment.Center
+mainTitle.TextYAlignment = Enum.TextYAlignment.Center
+mainTitle.TextSize = 40      -- ★★★ 在這裡改字大小 ★★★
+mainTitle.Parent = contentFrame
+
+-- 彩虹效果
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1
+    mainTitle.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+y = y + 60 -- 下一個選項的 y 位置
+
+createOptionRow(contentFrame, y, "Auto Teleport", function(row)
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0, 60, 0.5, 0)
+    switchBg.Position = UDim2.new(1, -70, 0.25, 0)
+    switchBg.BackgroundColor3 = AutoTeleportEnabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 28, 1, 0)
+    knob.Position = AutoTeleportEnabled and UDim2.new(1, -28, 0, 0) or UDim2.new(0, 0, 0, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 20)
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1,0,1,0)
+    button.BackgroundTransparency = 1
+    button.Text = ""
+    button.Parent = switchBg
+
+    button.MouseButton1Click:Connect(function()
+        AutoTeleportEnabled = not AutoTeleportEnabled
+
+        switchBg.BackgroundColor3 = AutoTeleportEnabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
+        knob:TweenPosition(AutoTeleportEnabled and UDim2.new(1,-28,0,0) or UDim2.new(0,0,0,0), "Out", "Quad", 0.15, true)
+
+        -- 開關打開時立即嘗試傳送
+        if AutoTeleportEnabled and getCharacterParts() and canTeleport() then
+            local exit = getClosestExit()
+            if exit then
+                teleportToExit(exit)
+            end
+        end
+    end)
+end)
+
+y = y + 60 -- 下一個選項的 y 位置
 
          -- ===== 彩虹大標題 =====
 local mainTitle = Instance.new("TextLabel")
