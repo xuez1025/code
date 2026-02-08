@@ -1113,7 +1113,7 @@ local TeleportTargets = {
     },
     {
         Name = "鬼船18",
-        Intermediate = CFrame.new( -6503,  83,  -123),
+        Intermediate = CFrame.new( -6504,  83,  -123),
         Target = Vector3.new(919, 126,33133)
     },
     {
