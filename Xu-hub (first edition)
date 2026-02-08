@@ -966,6 +966,65 @@ function SmartTeleport(intermediate, target)
     end
 end
 
+
+-- ================= State =================
+local FlyEnabled = false
+local TargetPlayer = nil
+local NoclipEnabled = false
+local FlySpeed = 350
+
+-- ================= Fly Functions =================
+local function EnableFly()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.PlatformStand = true
+    end
+end
+
+local function DisableFly()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.PlatformStand = false
+    end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.Velocity = Vector3.zero
+    end
+end
+
+-- ================= Noclip =================
+RunService.Stepped:Connect(function()
+    if not NoclipEnabled then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+        end
+    end
+end)
+
+-- ================= Fly Logic =================
+RunService.RenderStepped:Connect(function()
+    if not FlyEnabled or not TargetPlayer then return end
+
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local targetChar = TargetPlayer.Character
+    local targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+    if not hrp or not targetHRP then return end
+
+    local direction = (targetHRP.Position - hrp.Position)
+    if direction.Magnitude > 0 then
+        hrp.Velocity = direction.Unit * FlySpeed
+    end
+end)
+
 local TeleportTargets = {
     {
         Name = "海軍戰艦1",
@@ -2226,6 +2285,116 @@ y = y + 60 -- 下一個選項的 y 位置
                 end)
 
                 y = y + 60
+
+-- ================= Fly Toggle =================
+createOptionRow(contentFrame, y, "Fly to Player", function(row)
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0,60,0.5,0)
+    switchBg.Position = UDim2.new(1,-70,0.25,0)
+    switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,28,1,0)
+    knob.Position = UDim2.new(0,0,0,0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+
+    local function setState(state)
+        FlyEnabled = state
+        NoclipEnabled = state
+
+        if state then
+            EnableFly()
+            switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
+            knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.15,true)
+        else
+            DisableFly()
+            switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+            knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.15,true)
+        end
+    end
+
+    setState(false)
+
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            setState(not FlyEnabled)
+        end
+    end)
+end)
+
+y = y + 60
+
+-- ================= Target Player Dropdown =================
+createOptionRow(contentFrame, y, "選擇玩家", function(row)
+    local dropdown = Instance.new("TextButton")
+    dropdown.Size = UDim2.new(0,160,0.6,0)
+    dropdown.Position = UDim2.new(1,-170,0.2,0)
+    dropdown.Text = "點選"
+    dropdown.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    dropdown.TextColor3 = Color3.new(1,1,1)
+    dropdown.Font = Enum.Font.SourceSans
+    dropdown.TextSize = 16
+    dropdown.Parent = row
+    Instance.new("UICorner", dropdown)
+
+    local list = Instance.new("Frame")
+    list.Size = UDim2.new(0,160,0,0)
+    list.Position = UDim2.new(1,-170,1,5)
+    list.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    list.Visible = false
+    list.ClipsDescendants = true
+    list.Parent = row
+    Instance.new("UICorner", list)
+
+    local layout = Instance.new("UIListLayout", list)
+
+    local function refreshPlayers()
+        for _,c in ipairs(list:GetChildren()) do
+            if c:IsA("TextButton") then c:Destroy() end
+        end
+
+        for _,plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer then
+                local btn = Instance.new("TextButton")
+                btn.Size = UDim2.new(1,0,0,30)
+                btn.Text = plr.Name
+                btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+                btn.TextColor3 = Color3.new(1,1,1)
+                btn.Parent = list
+
+                btn.MouseButton1Click:Connect(function()
+                    TargetPlayer = plr
+                    dropdown.Text = plr.Name
+                    list.Visible = false
+                    list:TweenSize(UDim2.new(0,160,0,0),"Out","Quad",0.15,true)
+                end)
+            end
+        end
+
+        list.Size = UDim2.new(0,160,0,layout.AbsoluteContentSize.Y)
+    end
+
+    dropdown.MouseButton1Click:Connect(function()
+        list.Visible = not list.Visible
+        refreshPlayers()
+        list:TweenSize(
+            list.Visible and UDim2.new(0,160,0,layout.AbsoluteContentSize.Y)
+            or UDim2.new(0,160,0,0),
+            "Out","Quad",0.15,true
+        )
+    end)
+
+    Players.PlayerAdded:Connect(refreshPlayers)
+    Players.PlayerRemoving:Connect(refreshPlayers)
+end)
+
+y = y + 60
 
             elseif index == 6 then
                     local y = 10
