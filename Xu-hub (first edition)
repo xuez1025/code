@@ -881,11 +881,35 @@ task.spawn(function()
     end
 end)
 
+-- 全局狀態
 local FlyEnabled = false
 local NoclipEnabled = false
 local FlySpeed = 350
 local CurrentTargetPosition = nil
 
+-- 停止飛行與 Noclip 的函數
+local function DisableFlyAndNoclip()
+    local char = LocalPlayer.Character
+    if char then
+        -- 停飛
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = false end
+
+        -- 停 Noclip，恢復碰撞
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+                part.Velocity = Vector3.zero
+            end
+        end
+    end
+    FlyEnabled = false
+    NoclipEnabled = false
+    CurrentTargetPosition = nil
+    print("飛行與穿牆已完全關閉")
+end
+
+-- 啟用飛行
 local function EnableFly()
     local char = LocalPlayer.Character
     if char then
@@ -894,17 +918,7 @@ local function EnableFly()
     end
 end
 
-local function DisableFly()
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.PlatformStand = false end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if hrp then hrp.Velocity = Vector3.zero end
-    end
-end
-
--- Noclip
+-- Noclip 迴圈（只在啟用時改變碰撞）
 RunService.Stepped:Connect(function()
     if NoclipEnabled then
         local char = LocalPlayer.Character
@@ -931,9 +945,7 @@ RunService.RenderStepped:Connect(function()
                 hrp.Velocity = direction.Unit * FlySpeed
             else
                 hrp.Velocity = Vector3.zero
-                FlyEnabled = false
-                DisableFly()
-                NoclipEnabled = false
+                DisableFlyAndNoclip()
                 print("已到達目標！")
             end
         end
@@ -3236,6 +3248,45 @@ end)
 
 y = y + 60 -- 下一個選項的 y 位置
 
+createOptionRow(contentFrame, y, "停止飛行", function(row) 
+    -- 將 row 的文字改成紅色
+    if row:FindFirstChild("TextLabel") then
+        row.TextLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+    elseif row:IsA("TextLabel") or row:IsA("TextButton") then
+        row.TextColor3 = Color3.fromRGB(255, 0, 0)
+    end
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 40, 0.7, 0)
+    button.Position = UDim2.new(1, -70, 0.15, 0)
+    button.BackgroundTransparency = 1
+    button.Text = "◉"
+    button.TextScaled = true
+    button.TextColor3 = Color3.fromRGB(255,255,255)
+    button.Font = Enum.Font.SourceSansBold
+    button.Parent = row
+
+    local tweenService = game:GetService("TweenService")
+
+    button.MouseButton1Click:Connect(function()
+        -- 按鈕動畫
+        local shrinkTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,30,0.7,0)})
+        local growTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,40,0.7,0)})
+        shrinkTween:Play()
+        shrinkTween.Completed:Connect(function() growTween:Play() end)
+
+        local flashTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,0)})
+        local restoreTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,255)})
+        flashTween:Play()
+        flashTween.Completed:Connect(function() restoreTween:Play() end)
+
+        -- 停止飛行與 noclip
+        DisableFlyAndNoclip()
+    end)
+end)
+
+y = y + 60 -- 下一個按鈕
+
 createOptionRow(contentFrame, y, "海軍戰艦", function(row)
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(0, 40, 0.7, 0)
@@ -3804,6 +3855,45 @@ if World2 then
     end)
 
     y = y + 60 -- 下一個按鈕位置
+
+createOptionRow(contentFrame, y, "停止飛行", function(row) 
+    -- 將 row 的文字改成紅色
+    if row:FindFirstChild("TextLabel") then
+        row.TextLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+    elseif row:IsA("TextLabel") or row:IsA("TextButton") then
+        row.TextColor3 = Color3.fromRGB(255, 0, 0)
+    end
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 40, 0.7, 0)
+    button.Position = UDim2.new(1, -70, 0.15, 0)
+    button.BackgroundTransparency = 1
+    button.Text = "◉"
+    button.TextScaled = true
+    button.TextColor3 = Color3.fromRGB(255,255,255)
+    button.Font = Enum.Font.SourceSansBold
+    button.Parent = row
+
+    local tweenService = game:GetService("TweenService")
+
+    button.MouseButton1Click:Connect(function()
+        -- 按鈕動畫
+        local shrinkTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,30,0.7,0)})
+        local growTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,40,0.7,0)})
+        shrinkTween:Play()
+        shrinkTween.Completed:Connect(function() growTween:Play() end)
+
+        local flashTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,0)})
+        local restoreTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,255)})
+        flashTween:Play()
+        flashTween.Completed:Connect(function() restoreTween:Play() end)
+
+        -- 停止飛行與 noclip
+        DisableFlyAndNoclip()
+    end)
+end)
+
+y = y + 60 -- 下一個按鈕
 
     createOptionRow(contentFrame, y, "碼頭2", function(row)
         local button = Instance.new("TextButton")
@@ -4471,6 +4561,45 @@ if World3 then
     end)
 
     y = y + 60 -- 下一個按鈕位置
+
+createOptionRow(contentFrame, y, "停止飛行", function(row) 
+    -- 將 row 的文字改成紅色
+    if row:FindFirstChild("TextLabel") then
+        row.TextLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+    elseif row:IsA("TextLabel") or row:IsA("TextButton") then
+        row.TextColor3 = Color3.fromRGB(255, 0, 0)
+    end
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 40, 0.7, 0)
+    button.Position = UDim2.new(1, -70, 0.15, 0)
+    button.BackgroundTransparency = 1
+    button.Text = "◉"
+    button.TextScaled = true
+    button.TextColor3 = Color3.fromRGB(255,255,255)
+    button.Font = Enum.Font.SourceSansBold
+    button.Parent = row
+
+    local tweenService = game:GetService("TweenService")
+
+    button.MouseButton1Click:Connect(function()
+        -- 按鈕動畫
+        local shrinkTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,30,0.7,0)})
+        local growTween = tweenService:Create(button, TweenInfo.new(0.1), {Size=UDim2.new(0,40,0.7,0)})
+        shrinkTween:Play()
+        shrinkTween.Completed:Connect(function() growTween:Play() end)
+
+        local flashTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,0)})
+        local restoreTween = tweenService:Create(button, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,255)})
+        flashTween:Play()
+        flashTween.Completed:Connect(function() restoreTween:Play() end)
+
+        -- 停止飛行與 noclip
+        DisableFlyAndNoclip()
+    end)
+end)
+
+y = y + 60 -- 下一個按鈕
 
     createOptionRow(contentFrame, y, "港口", function(row)
         local button = Instance.new("TextButton")
