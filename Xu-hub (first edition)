@@ -1389,19 +1389,66 @@ StartCamlock()
         screenGui.Parent = PlayerGui
         screenGui.Name = "XuHubGui"
 
-        -- 小長方形開關
-        local toggleBtn = Instance.new("TextButton")
-        toggleBtn.Size = UDim2.new(0,120,0,50)
-        toggleBtn.Position = UDim2.new(0.5,-60,0,0)
-        toggleBtn.Text = "Xu-hub"
-        toggleBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-        toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
-        toggleBtn.BorderSizePixel = 0
-        toggleBtn.TextScaled = true
-        toggleBtn.Parent = screenGui
-        local toggleCorner = Instance.new("UICorner")
-        toggleCorner.CornerRadius = UDim.new(0,10)
-        toggleCorner.Parent = toggleBtn
+-- ===== Xu-hub 小長方形開關 (透明黑邊 + 可拖動) =====
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0,120,0,50)
+toggleBtn.Position = UDim2.new(0.5,-60,0,0)
+toggleBtn.Text = "Xu-hub"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+toggleBtn.BackgroundTransparency = 0.7 -- 半透明
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255) -- 初始文字顏色
+toggleBtn.BorderSizePixel = 2 -- 黑色邊框
+toggleBtn.BorderColor3 = Color3.fromRGB(0,0,0)
+toggleBtn.TextScaled = true
+toggleBtn.Parent = screenGui
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0,10)
+toggleCorner.Parent = toggleBtn
+
+-- 彩虹文字效果
+local RunService = game:GetService("RunService")
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt/2) % 1 -- 每秒轉動色相
+    toggleBtn.TextColor3 = Color3.fromHSV(hue,1,1)
+end)
+
+-- 可拖動功能
+local dragging = false
+local dragInput, mousePos, framePos
+
+toggleBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        mousePos = input.Position
+        framePos = toggleBtn.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+toggleBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if dragging and dragInput then
+        local delta = dragInput.Position - mousePos
+        toggleBtn.Position = UDim2.new(
+            framePos.X.Scale,
+            framePos.X.Offset + delta.X,
+            framePos.Y.Scale,
+            framePos.Y.Offset + delta.Y
+        )
+    end
+end)
 
         -- 主框架
         local mainFrame = Instance.new("Frame")
