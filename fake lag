@@ -1,0 +1,169 @@
+--// Services
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+--// Variables
+local SprintDistance = 50 -- 預設衝刺距離
+local SprintEnabled = false
+
+--// GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = PlayerGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 300, 0, 150)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
+MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+-- 標題欄（可拖動 & 縮小）
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TitleBar.Parent = MainFrame
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, -60, 1, 0)
+TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+TitleLabel.Text = "Blox Fruit Sprint GUI"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Parent = TitleBar
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -30, 0, 0)
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+CloseButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+CloseButton.Parent = TitleBar
+
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- 縮小按鈕
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
+MinimizeButton.Position = UDim2.new(1, -60, 0, 0)
+MinimizeButton.Text = "_"
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 0)
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MinimizeButton.Parent = TitleBar
+
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Size = UDim2.new(1, 0, 1, -30)
+ContentFrame.Position = UDim2.new(0, 0, 0, 30)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Parent = MainFrame
+
+MinimizeButton.MouseButton1Click:Connect(function()
+    ContentFrame.Visible = not ContentFrame.Visible
+end)
+
+-- 拖動功能
+local dragging = false
+local dragInput, mousePos, framePos
+
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        mousePos = input.Position
+        framePos = MainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+TitleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - mousePos
+        MainFrame.Position = UDim2.new(
+            framePos.X.Scale,
+            framePos.X.Offset + delta.X,
+            framePos.Y.Scale,
+            framePos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+--// 功能按鈕: 增加衝刺距離
+local SprintToggle = Instance.new("TextButton")
+SprintToggle.Size = UDim2.new(0, 200, 0, 40)
+SprintToggle.Position = UDim2.new(0, 50, 0, 20)
+SprintToggle.Text = "Sprint Boost: OFF"
+SprintToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+SprintToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+SprintToggle.Parent = ContentFrame
+
+SprintToggle.MouseButton1Click:Connect(function()
+    SprintEnabled = not SprintEnabled
+    SprintToggle.Text = "Sprint Boost: " .. (SprintEnabled and "ON" or "OFF")
+end)
+
+--// 功能滑桿: 調整衝刺距離
+local DistanceLabel = Instance.new("TextLabel")
+DistanceLabel.Size = UDim2.new(0, 200, 0, 20)
+DistanceLabel.Position = UDim2.new(0, 50, 0, 70)
+DistanceLabel.Text = "Distance: "..SprintDistance
+DistanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+DistanceLabel.BackgroundTransparency = 1
+DistanceLabel.Parent = ContentFrame
+
+local DistanceSlider = Instance.new("TextButton")
+DistanceSlider.Size = UDim2.new(0, 200, 0, 20)
+DistanceSlider.Position = UDim2.new(0, 50, 0, 100)
+DistanceSlider.Text = ""
+DistanceSlider.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+DistanceSlider.Parent = ContentFrame
+
+local SliderFill = Instance.new("Frame")
+SliderFill.Size = UDim2.new(SprintDistance/100, 0, 1, 0)
+SliderFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+SliderFill.Parent = DistanceSlider
+
+local draggingSlider = false
+
+DistanceSlider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingSlider = true
+    end
+end)
+
+DistanceSlider.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingSlider = false
+    end
+end)
+
+DistanceSlider.InputChanged:Connect(function(input)
+    if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local relativeX = math.clamp(input.Position.X - DistanceSlider.AbsolutePosition.X, 0, DistanceSlider.AbsoluteSize.X)
+        SliderFill.Size = UDim2.new(relativeX / DistanceSlider.AbsoluteSize.X, 0, 1, 0)
+        SprintDistance = math.floor((relativeX / DistanceSlider.AbsoluteSize.X) * 100)
+        DistanceLabel.Text = "Distance: "..SprintDistance
+    end
+end)
+
+--// 實際衝刺效果
+RunService.RenderStepped:Connect(function()
+    if SprintEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        local lookVector = hrp.CFrame.LookVector
+        hrp.Velocity = Vector3.new(lookVector.X * SprintDistance, hrp.Velocity.Y, lookVector.Z * SprintDistance)
+    end
+end)
