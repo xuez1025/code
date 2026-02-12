@@ -1,6 +1,7 @@
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "CoordinatesGui"
 screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
 local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0.25, 0, 0.15, 0)
 frame.Position = UDim2.new(0.4, 0, 0.8, 0)
@@ -10,6 +11,7 @@ frame.BorderSizePixel = 2
 frame.Active = true
 frame.Draggable = true
 frame.Parent = screenGui
+
 local label = Instance.new("TextLabel")
 label.Size = UDim2.new(1, 0, 0.6, 0)
 label.Position = UDim2.new(0, 0, 0, 0)
@@ -17,6 +19,7 @@ label.BackgroundTransparency = 1
 label.TextColor3 = Color3.fromRGB(255, 255, 255)
 label.TextScaled = true
 label.Parent = frame
+
 local copyButton = Instance.new("TextButton")
 copyButton.Size = UDim2.new(0.5, 0, 0.3, 0)
 copyButton.Position = UDim2.new(0.25, 0, 0.65, 0)
@@ -24,10 +27,28 @@ copyButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 copyButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
 copyButton.BorderSizePixel = 2
 copyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-copyButton.Text = "copy"
+copyButton.Text = "Copy"
 copyButton.TextScaled = true
 copyButton.Parent = frame
+
+-- 關閉按鈕（小正方形）
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 24, 0, 24) -- 固定像素，正方形
+closeButton.Position = UDim2.new(1, -26, 0, 2) -- 右上角內縮
+closeButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+closeButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.BorderSizePixel = 2
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.Text = "X"
+closeButton.TextScaled = true
+closeButton.Parent = frame
+
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
+
 local RunService = game:GetService("RunService")
+
 RunService.RenderStepped:Connect(function()
     local player = game.Players.LocalPlayer
     local character = player.Character
@@ -36,6 +57,7 @@ RunService.RenderStepped:Connect(function()
         label.Text = string.format("X: %.0f, Y: %.0f, Z: %.0f", position.X, position.Y, position.Z)
     end
 end)
+
 copyButton.MouseButton1Click:Connect(function()
     local player = game.Players.LocalPlayer
     local character = player.Character
