@@ -3127,7 +3127,7 @@ createOptionRow(contentFrame, y, "拉怪範圍:", function(row)
                     maxLabel.Parent = row
 
     local fill = Instance.new("Frame")
-    fill.Size = UDim2.new(BringNPC.PullRange / 300,0,1,0)
+    fill.Size = UDim2.new(BringNPC.PullRange / 250,0,1,0)
     fill.BackgroundColor3 = Color3.fromRGB(255,80,80)
     fill.Parent = slider
 
