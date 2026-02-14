@@ -1,0 +1,219 @@
+-- ================= Services =================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ================= UI =================
+local screenGui = Instance.new("ScreenGui", playerGui)
+
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 300, 0, 320)
+frame.Position = UDim2.new(0.5, -150, 0.5, -160)
+frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+frame.AnchorPoint = Vector2.new(0.5,0.5)
+frame.ClipsDescendants = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,15)
+
+-- Title
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, -50, 0, 30)
+title.Position = UDim2.new(0,10,0,10)
+title.Text = "Xu TP + Bring NPC"
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+title.TextScaled = true
+title.Font = Enum.Font.SourceSansBold
+title.Active = true
+
+-- Close
+local close = Instance.new("TextButton", frame)
+close.Size = UDim2.new(0,30,0,30)
+close.Position = UDim2.new(1,-40,0,10)
+close.Text = "X"
+close.TextScaled = true
+close.BackgroundColor3 = Color3.fromRGB(200,50,50)
+Instance.new("UICorner", close).CornerRadius = UDim.new(0,8)
+
+-- ================= State =================
+local isFlying = false
+local autoPull = false
+local flyConn, pullConn
+local targetNPC = nil
+
+local hoverHeight = 10
+local searchRange = 500
+local pullRange = 100
+
+-- ================= Buttons =================
+local function makeButton(text,y)
+    local b = Instance.new("TextButton", frame)
+    b.Size = UDim2.new(0,200,0,40)
+    b.Position = UDim2.new(0.5,-100,0,y)
+    b.Text = text
+    b.TextScaled = true
+    b.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    b.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
+    return b
+end
+
+local flyBtn = makeButton("飛行 TP : OFF", 60)
+local pullBtn = makeButton("Bring NPC : OFF", 110)
+
+-- ================= Slider Helper =================
+local function slider(y, text, min, max, default, callback)
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1,-20,0,26)
+    label.Position = UDim2.new(0,10,0,y)
+    label.Text = text..": "..default
+    label.TextColor3 = Color3.new(1,1,1)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.SourceSansBold
+    label.TextSize = 20
+    label.TextXAlignment = Enum.TextXAlignment.Left
+
+    local bar = Instance.new("Frame", frame)
+    bar.Size = UDim2.new(1,-40,0,16)
+    bar.Position = UDim2.new(0,20,0,y+22)
+    bar.BackgroundColor3 = Color3.fromRGB(80,80,80)
+    Instance.new("UICorner", bar).CornerRadius = UDim.new(0,8)
+
+    local knob = Instance.new("Frame", bar)
+    knob.Size = UDim2.new(0,20,1,0)
+    knob.Position = UDim2.new((default-min)/(max-min), -10, 0, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(0,200,255)
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,8)
+
+    local dragging = false
+    knob.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging=true end
+    end)
+    knob.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging=false end
+    end)
+
+    UserInputService.InputChanged:Connect(function(i)
+        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+            local r = math.clamp((i.Position.X-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
+            knob.Position = UDim2.new(r,-10,0,0)
+            local v = math.floor(min + (max-min)*r)
+            label.Text = text..": "..v
+            callback(v)
+        end
+    end)
+end
+
+-- ================= Sliders =================
+slider(160,"飛行高度",0,50,10,function(v) hoverHeight=v end)
+slider(210,"搜尋範圍",50,2000,500,function(v) searchRange=v end)
+slider(260,"拉怪範圍",20,250,100,function(v) pullRange=v end)
+
+-- ================= Fly Logic =================
+local function stopFly()
+    if flyConn then flyConn:Disconnect() flyConn=nil end
+    isFlying=false
+    flyBtn.Text="飛行 TP : OFF"
+    flyBtn.BackgroundColor3=Color3.fromRGB(255,0,0)
+end
+
+flyBtn.MouseButton1Click:Connect(function()
+    isFlying = not isFlying
+    flyBtn.Text = isFlying and "飛行 TP : ON" or "飛行 TP : OFF"
+    flyBtn.BackgroundColor3 = isFlying and Color3.fromRGB(0,200,0) or Color3.fromRGB(255,0,0)
+
+    if isFlying and not flyConn then
+        flyConn = RunService.Heartbeat:Connect(function()
+            local char = player.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+
+            local closest, dist = nil, math.huge
+            for _, npc in pairs(workspace.Enemies:GetChildren()) do
+                if npc:FindFirstChild("Humanoid") and npc.Humanoid.Health>0 and npc.PrimaryPart then
+                    local p = npc.PrimaryPart.Position
+                    local d = (p - hrp.Position).Magnitude
+                    if d < dist and d <= searchRange then
+                        dist = d
+                        closest = npc
+                    end
+                end
+            end
+            targetNPC = closest
+
+            if targetNPC and targetNPC.PrimaryPart then
+                -- 自動跟隨目標高度
+                local tpos = Vector3.new(
+                    targetNPC.PrimaryPart.Position.X,
+                    targetNPC.PrimaryPart.Position.Y + hoverHeight,
+                    targetNPC.PrimaryPart.Position.Z
+                )
+                hrp.CFrame = CFrame.new(tpos)
+            end
+        end)
+    elseif not isFlying then
+        stopFly()
+    end
+end)
+
+-- ================= Bring NPC =================
+local function stopPull()
+    if pullConn then pullConn:Disconnect() pullConn=nil end
+    autoPull=false
+    pullBtn.Text="Bring NPC : OFF"
+    pullBtn.BackgroundColor3=Color3.fromRGB(255,0,0)
+end
+
+pullBtn.MouseButton1Click:Connect(function()
+    autoPull = not autoPull
+    pullBtn.Text = autoPull and "Bring NPC : ON" or "Bring NPC : OFF"
+    pullBtn.BackgroundColor3 = autoPull and Color3.fromRGB(0,200,0) or Color3.fromRGB(255,0,0)
+
+    if autoPull and not pullConn then
+        pullConn = RunService.Heartbeat:Connect(function()
+            if not targetNPC or not targetNPC.PrimaryPart then return end
+            local basePos = targetNPC.PrimaryPart.Position
+
+            for _, npc in pairs(workspace.Enemies:GetChildren()) do
+                if npc ~= targetNPC and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health>0 and npc.PrimaryPart then
+                    local dist = (npc.PrimaryPart.Position - basePos).Magnitude
+                    if dist <= pullRange then
+                        -- 只改 X Z，不改 Y
+                        local newPos = Vector3.new(basePos.X, npc.PrimaryPart.Position.Y, basePos.Z)
+                        npc:SetPrimaryPartCFrame(CFrame.new(newPos))
+                    end
+                end
+            end
+        end)
+    elseif not autoPull then
+        stopPull()
+    end
+end)
+
+-- ================= Close =================
+close.MouseButton1Click:Connect(function()
+    stopFly()
+    stopPull()
+    screenGui:Destroy()
+end)
+
+-- ================= Drag UI =================
+local dragging=false
+local offset
+title.InputBegan:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.MouseButton1 then
+        dragging=true
+        offset=UserInputService:GetMouseLocation()-frame.AbsolutePosition
+    end
+end)
+title.InputEnded:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end
+end)
+UserInputService.InputChanged:Connect(function(i)
+    if dragging and i.UserInputType==Enum.UserInputType.MouseMovement then
+        local m = UserInputService:GetMouseLocation()
+        frame.Position = UDim2.new(0,m.X-offset.X,0,m.Y-offset.Y)
+    end
+end)
