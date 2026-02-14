@@ -236,61 +236,113 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-        -- ===== Farm TP 核心狀態 =====
-        local FarmTP = {
-            Enabled = false,
-            HoverHeight = 10,
-            Range = 500,
-            BaseSpeed = 0.1
-        }
+-- ===== Fly + Bring 核心狀態 =====
+local FlyTP = {
+    Enabled = false,
+    HoverHeight = 10,
+    SearchRange = 500
+}
 
-        local farmConn
+local BringNPC = {
+    Enabled = false,
+    PullRange = 100
+}
 
-        local function stopFarmTP()
-            FarmTP.Enabled = false
-            if farmConn then
-                farmConn:Disconnect()
-                farmConn = nil
+local flyConn
+local pullConn
+local targetNPC
+
+local function stopFly()
+    if flyConn then
+        flyConn:Disconnect()
+        flyConn = nil
+    end
+    FlyTP.Enabled = false
+end
+
+local function startFly()
+    if flyConn then return end
+
+    flyConn = RunService.Heartbeat:Connect(function()
+        if not FlyTP.Enabled then return end
+
+        local char = player.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        local enemiesFolder = workspace:FindFirstChild("Enemies")
+        if not enemiesFolder then return end
+
+        local closest, dist = nil, math.huge
+
+        for _, npc in pairs(enemiesFolder:GetChildren()) do
+            if npc:FindFirstChild("Humanoid")
+                and npc.Humanoid.Health > 0
+                and npc.PrimaryPart then
+
+                local p = npc.PrimaryPart.Position
+                local d = (p - hrp.Position).Magnitude
+
+                if d < dist and d <= FlyTP.SearchRange then
+                    dist = d
+                    closest = npc
+                end
             end
         end
 
-        local function startFarmTP()
-            if farmConn then return end
+        targetNPC = closest
 
-            farmConn = RunService.Heartbeat:Connect(function()
-                if not FarmTP.Enabled then return end
-
-                local char = player.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                if not hrp then return end
-
-                local enemiesFolder = workspace:FindFirstChild("Enemies")
-                if not enemiesFolder then return end
-
-                local nearest, minDist = nil, math.huge
-
-                for _, npc in ipairs(enemiesFolder:GetChildren()) do
-                    local hum = npc:FindFirstChild("Humanoid")
-                    local hrpNpc = npc:FindFirstChild("HumanoidRootPart") or npc:FindFirstChild("Head")
-                    if hum and hum.Health > 0 and hrpNpc then
-                        local dist = (hrpNpc.Position - hrp.Position).Magnitude
-                        if dist < minDist and dist <= FarmTP.Range then
-                            minDist = dist
-                            nearest = hrpNpc
-                        end
-                    end
-                end
-
-                if nearest then
-                    local targetPos = nearest.Position + Vector3.new(0, FarmTP.HoverHeight, 0)
-                    local speed = FarmTP.BaseSpeed
-                    if minDist < FarmTP.Range / 2 then
-                        speed = speed * 5
-                    end
-                    hrp.CFrame = CFrame.new(hrp.Position:Lerp(targetPos, speed))
-                end
-            end)
+        if targetNPC and targetNPC.PrimaryPart then
+            local tpos = Vector3.new(
+                targetNPC.PrimaryPart.Position.X,
+                targetNPC.PrimaryPart.Position.Y + FlyTP.HoverHeight,
+                targetNPC.PrimaryPart.Position.Z
+            )
+            hrp.CFrame = CFrame.new(tpos)
         end
+    end)
+end
+
+local function stopBring()
+    if pullConn then
+        pullConn:Disconnect()
+        pullConn = nil
+    end
+    BringNPC.Enabled = false
+end
+
+local function startBring()
+    if pullConn then return end
+
+    pullConn = RunService.Heartbeat:Connect(function()
+        if not BringNPC.Enabled then return end
+        if not targetNPC or not targetNPC.PrimaryPart then return end
+
+        local enemiesFolder = workspace:FindFirstChild("Enemies")
+        if not enemiesFolder then return end
+
+        local basePos = targetNPC.PrimaryPart.Position
+
+        for _, npc in pairs(enemiesFolder:GetChildren()) do
+            if npc ~= targetNPC
+                and npc:FindFirstChild("Humanoid")
+                and npc.Humanoid.Health > 0
+                and npc.PrimaryPart then
+
+                local dist = (npc.PrimaryPart.Position - basePos).Magnitude
+
+                if dist <= BringNPC.PullRange then
+                    local newPos = Vector3.new(
+                        basePos.X,
+                        npc.PrimaryPart.Position.Y,
+                        basePos.Z
+                    )
+                    npc:SetPrimaryPartCFrame(CFrame.new(newPos))
+                end
+            end
+        end
+    end)
+end
 
         -- ================= 核心 ESP 功能 =================
         local Players = game:GetService("Players")
@@ -2852,123 +2904,163 @@ y = y + 60
     end)
     y = y + 60
 
-        createOptionRow(contentFrame, y, "TP to NPC", function(row)
-            local switchBg = Instance.new("Frame")
-            switchBg.Size = UDim2.new(0,60,0.5,0)
-            switchBg.Position = UDim2.new(1,-70,0.25,0)
-            switchBg.BackgroundColor3 = FarmTP.Enabled and Color3.fromRGB(0,200,0)
-                or Color3.fromRGB(100,100,100)
-            switchBg.BorderSizePixel = 0
-            switchBg.Parent = row
-            Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+createOptionRow(contentFrame, y, "TP to NPC", function(row)
 
-            local knob = Instance.new("Frame")
-            knob.Size = UDim2.new(0,28,1,0)
-            knob.Position = FarmTP.Enabled
-                and UDim2.new(1,-28,0,0)
-                or UDim2.new(0,0,0,0)
-            knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-            knob.BorderSizePixel = 0
-            knob.Parent = switchBg
-            Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0,60,0.5,0)
+    switchBg.Position = UDim2.new(1,-70,0.25,0)
+    switchBg.BackgroundColor3 = FlyTP.Enabled
+        and Color3.fromRGB(0,200,0)
+        or Color3.fromRGB(100,100,100)
+    switchBg.BorderSizePixel = 0
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
 
-            local function toggle()
-                FarmTP.Enabled = not FarmTP.Enabled
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,28,1,0)
+    knob.Position = FlyTP.Enabled
+        and UDim2.new(1,-28,0,0)
+        or UDim2.new(0,0,0,0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
 
-                if FarmTP.Enabled then
-                    knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
-                    switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
-                    startFarmTP()
-                else
-                    knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
-                    switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
-                    stopFarmTP()
-                end
-            end
+    local function toggle()
+        FlyTP.Enabled = not FlyTP.Enabled
 
-            switchBg.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    toggle()
-                end
-            end)
-        end)
+        if FlyTP.Enabled then
+            knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
+            startFly()
+        else
+            knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+            stopFly()
+        end
+    end
 
-        y = y + 60
-        createOptionRow(contentFrame, y, "飛行高度:", function(row)
-            local inputBox = Instance.new("TextBox")
-            inputBox.Size = UDim2.new(0,80,0.6,0)
-            inputBox.Position = UDim2.new(0,130,0.2,0)
-            inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
-            inputBox.TextColor3 = Color3.fromRGB(255,255,255)
-            inputBox.TextScaled = true
-            inputBox.ClearTextOnFocus = false
-            inputBox.Text = tostring(FarmTP.HoverHeight)
-            inputBox.Parent = row
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggle()
+        end
+    end)
+end)
 
-            local slider = Instance.new("Frame")
-            slider.Size = UDim2.new(0,200,0.3,0)
-            slider.Position = UDim2.new(0,220,0.35,0)
-            slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
-            slider.Parent = row
+y = y + 60
 
-            local fill = Instance.new("Frame")
-            fill.Size = UDim2.new(FarmTP.HoverHeight/50,0,1,0)
-            fill.BackgroundColor3 = Color3.fromRGB(255,150,0)
-            fill.Parent = slider
+createOptionRow(contentFrame, y, "Bring NPC", function(row)
 
-			                    local maxLabel = Instance.new("TextLabel")
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0,60,0.5,0)
+    switchBg.Position = UDim2.new(1,-70,0.25,0)
+    switchBg.BackgroundColor3 = BringNPC.Enabled
+        and Color3.fromRGB(0,200,0)
+        or Color3.fromRGB(100,100,100)
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,28,1,0)
+    knob.Position = BringNPC.Enabled
+        and UDim2.new(1,-28,0,0)
+        or UDim2.new(0,0,0,0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+
+    local function toggle()
+        BringNPC.Enabled = not BringNPC.Enabled
+
+        if BringNPC.Enabled then
+            knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
+            startBring()
+        else
+            knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+            stopBring()
+        end
+    end
+
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggle()
+        end
+    end)
+end)
+
+y = y + 60
+
+createOptionRow(contentFrame, y, "飛行高度:", function(row)
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0,80,0.6,0)
+    inputBox.Position = UDim2.new(0,130,0.2,0)
+    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+    inputBox.TextScaled = true
+    inputBox.ClearTextOnFocus = false
+    inputBox.Text = tostring(FlyTP.HoverHeight)
+    inputBox.Parent = row
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,200,0.3,0)
+    slider.Position = UDim2.new(0,220,0.35,0)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = row
+
+                    local maxLabel = Instance.new("TextLabel")
                     maxLabel.Size = UDim2.new(0,80,1,0)
                     maxLabel.Position = UDim2.new(0,430,0,0)
                     maxLabel.BackgroundTransparency = 1
-                    maxLabel.Text = "(max:50)"
+                    maxLabel.Text = "(max:50m)"
                     maxLabel.TextColor3 = Color3.fromRGB(200,200,200)
                     maxLabel.TextScaled = true
                     maxLabel.TextXAlignment = Enum.TextXAlignment.Left
                     maxLabel.Parent = row
 
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(FlyTP.HoverHeight / 50,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(255,150,0)
+    fill.Parent = slider
 
-            local MAX_HEIGHT = 50
-            local dragging = false
+    local MAX = 50
+    local dragging = false
 
-            slider.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
-            end)
-            slider.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-            end)
-            slider.InputChanged:Connect(function(input)
-                if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                    local x = math.clamp(input.Position.X - slider.AbsolutePosition.X,0,slider.AbsoluteSize.X)
-                    local val = math.floor((x/slider.AbsoluteSize.X)*MAX_HEIGHT)
-                    FarmTP.HoverHeight = val
-                    inputBox.Text = tostring(val)
-                    fill.Size = UDim2.new(x/slider.AbsoluteSize.X,0,1,0)
-                end
-            end)
-        end)
+    slider.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    slider.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    slider.InputChanged:Connect(function(i)
+        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+            local x = math.clamp(i.Position.X - slider.AbsolutePosition.X,0,slider.AbsoluteSize.X)
+            local val = math.floor((x / slider.AbsoluteSize.X) * MAX)
+            FlyTP.HoverHeight = val
+            inputBox.Text = tostring(val)
+            fill.Size = UDim2.new(x / slider.AbsoluteSize.X,0,1,0)
+        end
+    end)
+end)
 
-        y = y + 60
-        createOptionRow(contentFrame, y, "TP範圍:", function(row)
-            local inputBox = Instance.new("TextBox")
-            inputBox.Size = UDim2.new(0,80,0.6,0)
-            inputBox.Position = UDim2.new(0,130,0.2,0)
-            inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
-            inputBox.TextColor3 = Color3.fromRGB(255,255,255)
-            inputBox.TextScaled = true
-            inputBox.ClearTextOnFocus = false
-            inputBox.Text = tostring(FarmTP.Range)
-            inputBox.Parent = row
+y = y + 60
 
-            local slider = Instance.new("Frame")
-            slider.Size = UDim2.new(0,200,0.3,0)
-            slider.Position = UDim2.new(0,220,0.35,0)
-            slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
-            slider.Parent = row
+createOptionRow(contentFrame, y, "搜尋範圍:", function(row)
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0,80,0.6,0)
+    inputBox.Position = UDim2.new(0,130,0.2,0)
+    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+    inputBox.TextScaled = true
+    inputBox.ClearTextOnFocus = false
+    inputBox.Text = tostring(FlyTP.SearchRange)
+    inputBox.Parent = row
 
-            local fill = Instance.new("Frame")
-            fill.Size = UDim2.new(FarmTP.Range/2000,0,1,0)
-            fill.BackgroundColor3 = Color3.fromRGB(0,255,150)
-            fill.Parent = slider
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,200,0.3,0)
+    slider.Position = UDim2.new(0,220,0.35,0)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = row
 
                     local maxLabel = Instance.new("TextLabel")
                     maxLabel.Size = UDim2.new(0,80,1,0)
@@ -2980,27 +3072,86 @@ y = y + 60
                     maxLabel.TextXAlignment = Enum.TextXAlignment.Left
                     maxLabel.Parent = row
 
-            local MAX_RANGE = 2000
-            local dragging = false
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(FlyTP.SearchRange / 2000,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(0,200,255)
+    fill.Parent = slider
 
-            slider.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
-            end)
-            slider.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-            end)
-            slider.InputChanged:Connect(function(input)
-                if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                    local x = math.clamp(input.Position.X - slider.AbsolutePosition.X,0,slider.AbsoluteSize.X)
-                    local val = math.floor((x/slider.AbsoluteSize.X)*MAX_RANGE)
-                    FarmTP.Range = val
-                    inputBox.Text = tostring(val)
-                    fill.Size = UDim2.new(x/slider.AbsoluteSize.X,0,1,0)
-                end
-            end)
-        end)
+    local MAX = 2000
+    local dragging = false
 
-        y = y + 60
+    slider.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    slider.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    slider.InputChanged:Connect(function(i)
+        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+            local x = math.clamp(i.Position.X - slider.AbsolutePosition.X,0,slider.AbsoluteSize.X)
+            local val = math.floor((x / slider.AbsoluteSize.X) * MAX)
+            FlyTP.SearchRange = val
+            inputBox.Text = tostring(val)
+            fill.Size = UDim2.new(x / slider.AbsoluteSize.X,0,1,0)
+        end
+    end)
+end)
+
+y = y + 60
+
+createOptionRow(contentFrame, y, "拉怪範圍:", function(row)
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0,80,0.6,0)
+    inputBox.Position = UDim2.new(0,130,0.2,0)
+    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+    inputBox.TextScaled = true
+    inputBox.ClearTextOnFocus = false
+    inputBox.Text = tostring(BringNPC.PullRange)
+    inputBox.Parent = row
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,200,0.3,0)
+    slider.Position = UDim2.new(0,220,0.35,0)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = row
+
+                    local maxLabel = Instance.new("TextLabel")
+                    maxLabel.Size = UDim2.new(0,80,1,0)
+                    maxLabel.Position = UDim2.new(0,430,0,0)
+                    maxLabel.BackgroundTransparency = 1
+                    maxLabel.Text = "(max:250m)"
+                    maxLabel.TextColor3 = Color3.fromRGB(200,200,200)
+                    maxLabel.TextScaled = true
+                    maxLabel.TextXAlignment = Enum.TextXAlignment.Left
+                    maxLabel.Parent = row
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(BringNPC.PullRange / 300,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(255,80,80)
+    fill.Parent = slider
+
+    local MAX = 250
+    local dragging = false
+
+    slider.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    slider.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    slider.InputChanged:Connect(function(i)
+        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+            local x = math.clamp(i.Position.X - slider.AbsolutePosition.X,0,slider.AbsoluteSize.X)
+            local val = math.floor((x / slider.AbsoluteSize.X) * MAX)
+            BringNPC.PullRange = val
+            inputBox.Text = tostring(val)
+            fill.Size = UDim2.new(x / slider.AbsoluteSize.X,0,1,0)
+        end
+    end)
+end)
+
+y = y + 60
 
          -- ===== 彩虹大標題 =====
 local mainTitle = Instance.new("TextLabel")
