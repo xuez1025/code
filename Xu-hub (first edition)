@@ -9,6 +9,8 @@
         local player = Players.LocalPlayer
         local PlayerGui = player:WaitForChild("PlayerGui")
 
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
 local currentPlaceId = game.PlaceId
 local World1 = currentPlaceId == 2753915549 or currentPlaceId == 85211729168715
 local World2 = currentPlaceId == 4442272183 or currentPlaceId == 79091703265657
@@ -1501,15 +1503,25 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ===== 主框架 =====
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0,900,0,650)
-mainFrame.Position = UDim2.new(0.5,-450,0.5,-325)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 mainFrame.BackgroundTransparency = 0.3
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
 mainFrame.Parent = screenGui
+
+if isMobile then
+    -- 手機版（比例）
+    mainFrame.Size = UDim2.new(0.95,0,0.9,0)
+    mainFrame.Position = UDim2.new(0.025,0,0.05,0)
+else
+    -- PC版（固定尺寸）
+    mainFrame.Size = UDim2.new(0,900,0,650)
+    mainFrame.Position = UDim2.new(0.5,-450,0.5,-325)
+end
+
+local originalSize = mainFrame.Size
+local originalPosition = mainFrame.Position
 
 local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0,10)
@@ -1576,9 +1588,10 @@ minimizeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- 左側側欄
+local sideWidth = isMobile and 120 or 180
+
 local sideBar = Instance.new("ScrollingFrame")
-sideBar.Size = UDim2.new(0,180,1,-50)
+sideBar.Size = UDim2.new(0, sideWidth, 1, -50)
 sideBar.Position = UDim2.new(0,0,0,50)
 sideBar.BackgroundColor3 = Color3.fromRGB(50,50,50)
 sideBar.BackgroundTransparency = 0.4
@@ -1586,14 +1599,13 @@ sideBar.BorderSizePixel = 0
 sideBar.ScrollBarThickness = 6
 sideBar.Parent = mainFrame
 
-local sideUICorner = Instance.new("UICorner")
-sideUICorner.CornerRadius = UDim.new(0,10)
-sideUICorner.Parent = sideBar
+local sideCorner = Instance.new("UICorner")
+sideCorner.CornerRadius = UDim.new(0,10)
+sideCorner.Parent = sideBar
 
--- 右側內容區
 local contentFrame = Instance.new("ScrollingFrame")
-contentFrame.Size = UDim2.new(1,-180,1,-50)
-contentFrame.Position = UDim2.new(0,180,0,50)
+contentFrame.Size = UDim2.new(1, -sideWidth, 1, -50)
+contentFrame.Position = UDim2.new(0, sideWidth, 0, 50)
 contentFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 contentFrame.BackgroundTransparency = 0.8
 contentFrame.BorderSizePixel = 0
@@ -1641,17 +1653,18 @@ local function hideGUI()
     end)
 end
 
--- ===== 觸發方式 =====
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.RightControl then
-        if guiVisible then
-            hideGUI()
-        else
-            showGUI()
+if not isMobile then
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.KeyCode == Enum.KeyCode.RightControl then
+            if guiVisible then
+                hideGUI()
+            else
+                showGUI()
+            end
         end
-    end
-end)
+    end)
+end
 
 toggleBtn.MouseButton1Click:Connect(function()
     if guiVisible then
@@ -1661,38 +1674,44 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-        -- ===== 側欄按鈕 =====
-        local buttonNames = {
-            "自動", "通用", "Server", "狀態", "PVP", 
-            "Farm", "設定", "傳送", "娛樂", "其他"
-        }
+local buttonNames = {
+    "自動", "通用", "Server", "狀態", "PVP", 
+    "Farm", "設定", "傳送", "娛樂", "其他"
+}
 
-        local buttons = {}
-        for i=1,10 do
-            local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1,-20,0,50)
-            btn.Position = UDim2.new(0,10,0,10 + (i-1)*60)
-            btn.Text = buttonNames[i]
-            btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
-            btn.TextColor3 = Color3.fromRGB(255,255,255)
-            btn.BorderSizePixel = 0
-            btn.TextScaled = true
-            btn.Font = Enum.Font.SourceSansBold
-            btn.Parent = sideBar
+local buttons = {}
 
-            local btnCorner = Instance.new("UICorner")
-            btnCorner.CornerRadius = UDim.new(0,10)
-            btnCorner.Parent = btn
+for i=1,10 do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,-20,0,50)
+    btn.Position = UDim2.new(0,10,0,10 + (i-1)*60)
+    btn.Text = buttonNames[i]
+    btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.BorderSizePixel = 0
+    btn.Font = Enum.Font.SourceSansBold
 
-            local indicator = Instance.new("Frame")
-            indicator.Size = UDim2.new(0,4,1,0)
-            indicator.Position = UDim2.new(0,0,0,0)
-            indicator.BackgroundColor3 = Color3.fromRGB(0,120,255)
-            indicator.Visible = false
-            indicator.Parent = btn
+    if isMobile then
+        btn.TextSize = 16
+        btn.TextScaled = false
+    else
+        btn.TextScaled = true
+    end
 
-            buttons[i] = {Button = btn, Indicator = indicator}
-        end
+    btn.Parent = sideBar
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0,10)
+    btnCorner.Parent = btn
+
+    local indicator = Instance.new("Frame")
+    indicator.Size = UDim2.new(0,4,1,0)
+    indicator.BackgroundColor3 = Color3.fromRGB(0,120,255)
+    indicator.Visible = false
+    indicator.Parent = btn
+
+    buttons[i] = {Button = btn, Indicator = indicator}
+end
 
         -- ===== 右側內容生成函數 =====
         local function createOptionRow(parent, yPos, labelText, contentFunc)
