@@ -1534,18 +1534,18 @@ local screenWidth = viewportSize.X
 local screenHeight = viewportSize.Y
 
 -- 設定比例
-local widthScale = 0.65
-local heightScale = 0.7
+local widthScale = 0.5   -- 原本 0.65
+local heightScale = 0.65 -- 高度也稍微縮一點
 
 -- 計算基礎尺寸
 local calculatedWidth = screenWidth * widthScale
 local calculatedHeight = screenHeight * heightScale
 
--- 設定最大最小限制（避免過大或過小）
-local minWidth = 600
-local minHeight = 400
-local maxWidth = 1200
-local maxHeight = 900
+-- 設定最大最小限制
+local minWidth = 450     -- 原本 600
+local minHeight = 350    -- 原本 400
+local maxWidth = 950     -- 原本 1200
+local maxHeight = 800    -- 原本 900
 
 calculatedWidth = math.clamp(calculatedWidth, minWidth, maxWidth)
 calculatedHeight = math.clamp(calculatedHeight, minHeight, maxHeight)
@@ -1562,8 +1562,8 @@ camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
     local screenWidth = viewportSize.X
     local screenHeight = viewportSize.Y
 
-    local calculatedWidth = math.clamp(screenWidth * 0.65, 600, 1100)
-    local calculatedHeight = math.clamp(screenHeight * 0.7, 400, 850)
+local calculatedWidth = math.clamp(screenWidth * 0.5, 450, 950)
+local calculatedHeight = math.clamp(screenHeight * 0.65, 350, 800)
 
     mainFrame.Size = UDim2.new(0, calculatedWidth, 0, calculatedHeight)
     mainFrame.Position = UDim2.new(
