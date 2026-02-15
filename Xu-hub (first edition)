@@ -1445,8 +1445,8 @@ screenGui.Name = "XuHubGui"
 
 -- ===== 小長方形開關 (透明黑邊 + 可拖動) =====
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0,120,0,50)
-toggleBtn.Position = UDim2.new(0.5,-60,0,0)
+toggleBtn.Size = UDim2.new(0,90,0,38)
+toggleBtn.Position = UDim2.new(0, 20, 1, -80)
 toggleBtn.Text = "Xu-hub"
 toggleBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
 toggleBtn.BackgroundTransparency = 0.7
@@ -1505,8 +1505,8 @@ end)
 
 local function updateToggleByMainFrame()
     -- 小長方形 ≈ GUI 寬度的 15%，高度固定比例
-    local w = math.clamp(mainFrame.Size.X.Offset * 0.15, 100, 160)
-    local h = math.clamp(mainFrame.Size.Y.Offset * 0.08, 40, 60)
+local w = math.clamp(mainFrame.Size.X.Offset * 0.12, 80, 120)
+local h = math.clamp(mainFrame.Size.Y.Offset * 0.06, 32, 48)
 
     toggleBtn.Size = UDim2.new(0, w, 0, h)
 
@@ -1519,6 +1519,9 @@ local function updateToggleByMainFrame()
         )
     end
 end
+
+toggleBtn.TextScaled = true
+toggleBtn.TextSize = 18 -- 保險用，TextScaled 開著其實會自動
 
 local mainFrame = Instance.new("Frame")
 mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
@@ -1533,19 +1536,19 @@ local viewportSize = camera.ViewportSize
 local screenWidth = viewportSize.X
 local screenHeight = viewportSize.Y
 
--- 設定比例（再縮）
-local widthScale  = 0.45   -- 原本 0.5
-local heightScale = 0.6    -- 原本 0.65
+-- 設定比例
+local widthScale = 0.5   -- 原本 0.65
+local heightScale = 0.65 -- 高度也稍微縮一點
 
 -- 計算基礎尺寸
 local calculatedWidth = screenWidth * widthScale
 local calculatedHeight = screenHeight * heightScale
 
--- 最小 / 最大限制
-local minWidth  = 420      -- 原本 450
-local minHeight = 320      -- 原本 350
-local maxWidth  = 850      -- 原本 950
-local maxHeight = 720      -- 原本 800
+-- 設定最大最小限制
+local minWidth = 450     -- 原本 600
+local minHeight = 350    -- 原本 400
+local maxWidth = 950     -- 原本 1200
+local maxHeight = 800    -- 原本 900
 
 calculatedWidth = math.clamp(calculatedWidth, minWidth, maxWidth)
 calculatedHeight = math.clamp(calculatedHeight, minHeight, maxHeight)
@@ -1562,9 +1565,8 @@ camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
     local screenWidth = viewportSize.X
     local screenHeight = viewportSize.Y
 
-local calculatedWidth = math.clamp(screenWidth * 0.45, 420, 850)
-local calculatedHeight = math.clamp(screenHeight * 0.6, 320, 720)
-local sideWidth = math.clamp(mainFrame.Size.X.Offset * 0.18, 100, 200)
+local calculatedWidth = math.clamp(screenWidth * 0.5, 450, 950)
+local calculatedHeight = math.clamp(screenHeight * 0.65, 350, 800)
 
     mainFrame.Size = UDim2.new(0, calculatedWidth, 0, calculatedHeight)
     mainFrame.Position = UDim2.new(
