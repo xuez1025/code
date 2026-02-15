@@ -1438,6 +1438,57 @@ end
 
 StartCamlock()
 
+
+local Hitbox = {
+    Enabled = false,
+    Size = 5,
+    Transparency = 0.5,
+    Connections = {}
+}
+
+local function getRoot(character)
+    return character:FindFirstChild("HumanoidRootPart")
+end
+
+function Hitbox:ApplyToPlayer(plr)
+    if plr == LocalPlayer then return end
+    if not plr.Character then return end
+
+    local root = getRoot(plr.Character)
+    if root and root:IsA("BasePart") then
+        root.CanCollide = false
+        root.Size = Vector3.new(self.Size, self.Size, self.Size)
+        root.Transparency = self.Transparency
+    end
+end
+
+function Hitbox:ApplyAll()
+    for _, plr in pairs(Players:GetPlayers()) do
+        self:ApplyToPlayer(plr)
+    end
+end
+
+function Hitbox:Start()
+    if self.Enabled then return end
+    self.Enabled = true
+
+    self:ApplyAll()
+
+    -- 玩家重生時重新套用
+    self.Connections.PlayerAdded = Players.PlayerAdded:Connect(function(plr)
+        plr.CharacterAdded:Connect(function()
+            task.wait(1)
+            if self.Enabled then
+                self:ApplyToPlayer(plr)
+            end
+        end)
+    end)
+end
+
+function Hitbox:Stop()
+    self.Enabled = false
+end
+
 -- ===== ScreenGui =====
 local screenGui = Instance.new("ScreenGui")
 screenGui.Parent = PlayerGui
@@ -2153,6 +2204,123 @@ RunService.RenderStepped:Connect(function()
     if waterWalkEnabled then
         updatePlatform()
     end
+end)
+
+y = y + 60
+
+createOptionRow(contentFrame, y, "碰撞箱", function(row)
+
+    local switchBg = Instance.new("Frame")
+    switchBg.Size = UDim2.new(0,60,0.5,0)
+    switchBg.Position = UDim2.new(1,-70,0.25,0)
+    switchBg.BackgroundColor3 = Hitbox.Enabled
+        and Color3.fromRGB(0,200,0)
+        or Color3.fromRGB(100,100,100)
+    switchBg.Parent = row
+    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0,20)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,28,1,0)
+    knob.Position = Hitbox.Enabled
+        and UDim2.new(1,-28,0,0)
+        or UDim2.new(0,0,0,0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.Parent = switchBg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,20)
+
+    local function toggle()
+        Hitbox.Enabled = not Hitbox.Enabled
+
+        if Hitbox.Enabled then
+            knob:TweenPosition(UDim2.new(1,-28,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(0,200,0)
+            Hitbox:Start()
+        else
+            knob:TweenPosition(UDim2.new(0,0,0,0),"Out","Quad",0.2,true)
+            switchBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+            Hitbox:Stop()
+        end
+    end
+
+    switchBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggle()
+        end
+    end)
+end)
+
+y = y + 60
+
+createOptionRow(contentFrame, y, "碰撞箱調整:", function(row)
+
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0,80,0.6,0)
+    inputBox.Position = UDim2.new(0,130,0.2,0)
+    inputBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+    inputBox.TextScaled = true
+    inputBox.ClearTextOnFocus = false
+    inputBox.Text = tostring(Hitbox.Size)
+    inputBox.Parent = row
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,200,0.3,0)
+    slider.Position = UDim2.new(0,220,0.35,0)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = row
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(Hitbox.Size / 20,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(255,150,0)
+    fill.Parent = slider
+
+    local MAX = 20
+    local dragging = false
+
+    slider.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+
+    slider.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    slider.InputChanged:Connect(function(i)
+        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+            local x = math.clamp(
+                i.Position.X - slider.AbsolutePosition.X,
+                0,
+                slider.AbsoluteSize.X
+            )
+
+            local val = math.floor((x / slider.AbsoluteSize.X) * MAX)
+            Hitbox.Size = val
+            inputBox.Text = tostring(val)
+            fill.Size = UDim2.new(x / slider.AbsoluteSize.X,0,1,0)
+
+            if Hitbox.Enabled then
+                Hitbox:ApplyAll()
+            end
+        end
+    end)
+
+    inputBox.FocusLost:Connect(function()
+        local val = tonumber(inputBox.Text)
+        if val then
+            val = math.clamp(val,1,MAX)
+            Hitbox.Size = val
+            fill.Size = UDim2.new(val/MAX,0,1,0)
+            inputBox.Text = tostring(val)
+
+            if Hitbox.Enabled then
+                Hitbox:ApplyAll()
+            end
+        end
+    end)
 end)
 
 y = y + 60
