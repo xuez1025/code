@@ -2755,25 +2755,20 @@ createOptionRow(contentFrame, y, "選擇玩家", function(row)
     dropdown.Parent = row
     Instance.new("UICorner", dropdown)
 
-    local ScreenGui = row:FindFirstAncestorOfClass("ScreenGui")
-
+    -- ▼▼ 重點：list 直接掛在 row ▼▼
     local list = Instance.new("Frame")
     list.Size = UDim2.new(0,160,0,0)
+    list.Position = UDim2.new(1,-170,1,4)
     list.BackgroundColor3 = Color3.fromRGB(40,40,40)
     list.Visible = false
     list.ClipsDescendants = true
-    list.ZIndex = 100
-    list.Parent = ScreenGui
+    list.ZIndex = 20
+    list.Parent = row
     Instance.new("UICorner", list)
 
     local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0,2)
     layout.Parent = list
-
-    local function updatePosition()
-        local pos = dropdown.AbsolutePosition
-        local size = dropdown.AbsoluteSize
-        list.Position = UDim2.fromOffset(pos.X, pos.Y + size.Y + 4)
-    end
 
     local function refreshPlayers()
 
@@ -2793,7 +2788,7 @@ createOptionRow(contentFrame, y, "選擇玩家", function(row)
                 btn.TextColor3 = Color3.new(1,1,1)
                 btn.Font = Enum.Font.SourceSans
                 btn.TextSize = 15
-                btn.ZIndex = 101
+                btn.ZIndex = 21
                 btn.Parent = list
 
                 btn.MouseButton1Click:Connect(function()
@@ -2815,9 +2810,7 @@ createOptionRow(contentFrame, y, "選擇玩家", function(row)
 
     dropdown.MouseButton1Click:Connect(function()
 
-        updatePosition()
         refreshPlayers()
-
         list.Visible = not list.Visible
 
         list:TweenSize(
@@ -2909,84 +2902,91 @@ y = y + 60
 
 
     -- 武器選擇下拉
-    createOptionRow(contentFrame, y, "選擇武器類型", function(row)
-        local dropdown = Instance.new("TextButton")
-        dropdown.Size = UDim2.new(0,160,0.6,0)
-        dropdown.Position = UDim2.new(1,-170,0.2,0)
-        dropdown.Text = selectedType
-        dropdown.BackgroundColor3 = Color3.fromRGB(60,60,60)
-        dropdown.TextColor3 = Color3.new(1,1,1)
-        dropdown.Font = Enum.Font.SourceSans
-        dropdown.TextSize = 16
-        dropdown.ZIndex = 10
-        dropdown.Parent = row
-        Instance.new("UICorner", dropdown)
+-- 武器選擇下拉
+createOptionRow(contentFrame, y, "選擇武器類型", function(row)
 
-        local ScreenGui = row:FindFirstAncestorOfClass("ScreenGui")
+    local dropdown = Instance.new("TextButton")
+    dropdown.Size = UDim2.new(0,160,0.6,0)
+    dropdown.Position = UDim2.new(1,-170,0.2,0)
+    dropdown.Text = selectedType
+    dropdown.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    dropdown.TextColor3 = Color3.new(1,1,1)
+    dropdown.Font = Enum.Font.SourceSans
+    dropdown.TextSize = 16
+    dropdown.ZIndex = 10
+    dropdown.Parent = row
+    Instance.new("UICorner", dropdown)
 
-        local list = Instance.new("Frame")
-        list.Size = UDim2.new(0,160,0,0)
-        list.BackgroundColor3 = Color3.fromRGB(40,40,40)
-        list.Visible = false
-        list.ClipsDescendants = true
-        list.ZIndex = 100
-        list.Parent = ScreenGui
-        Instance.new("UICorner", list)
+    -- ▼▼ 重點：list 改成 row 子物件 ▼▼
+    local list = Instance.new("Frame")
+    list.Size = UDim2.new(0,160,0,0)
+    list.Position = UDim2.new(1,-170,1,4)
+    list.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    list.Visible = false
+    list.ClipsDescendants = true
+    list.ZIndex = 20
+    list.Parent = row
+    Instance.new("UICorner", list)
 
-        local layout = Instance.new("UIListLayout")
-        layout.Parent = list
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0,2)
+    layout.Parent = list
 
-        local weaponTypes = {"Melee", "Blox Fruit", "Sword", "Gun"}
+    local weaponTypes = {"Melee", "Blox Fruit", "Sword", "Gun"}
 
-        local function updatePosition()
-            local pos = dropdown.AbsolutePosition
-            local size = dropdown.AbsoluteSize
-            list.Position = UDim2.fromOffset(pos.X, pos.Y + size.Y + 4)
+    local function refreshWeapons()
+        for _,c in ipairs(list:GetChildren()) do
+            if c:IsA("TextButton") then
+                c:Destroy()
+            end
         end
 
-        local function refreshWeapons()
-            for _,c in ipairs(list:GetChildren()) do
-                if c:IsA("TextButton") then c:Destroy() end
-            end
+        for _,typeName in ipairs(weaponTypes) do
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1,0,0,30)
+            btn.Text = typeName
+            btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+            btn.TextColor3 = Color3.new(1,1,1)
+            btn.Font = Enum.Font.SourceSans
+            btn.TextSize = 15
+            btn.ZIndex = 21
+            btn.Parent = list
 
-            for _,typeName in ipairs(weaponTypes) do
-                local btn = Instance.new("TextButton")
-                btn.Size = UDim2.new(1,0,0,30)
-                btn.Text = typeName
-                btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
-                btn.TextColor3 = Color3.new(1,1,1)
-                btn.Font = Enum.Font.SourceSans
-                btn.TextSize = 15
-                btn.ZIndex = 101
-                btn.Parent = list
+            btn.MouseButton1Click:Connect(function()
+                selectedType = typeName
+                dropdown.Text = typeName
+                list.Visible = false
 
-                btn.MouseButton1Click:Connect(function()
-                    selectedType = typeName
-                    dropdown.Text = typeName
-                    list.Visible = false
-                    list:TweenSize(UDim2.new(0,160,0,0),"Out","Quad",0.15,true)
-                    if autoEquipEnabled then
-                        equipByType(selectedType)
-                    end
-                end)
-            end
+                list:TweenSize(
+                    UDim2.new(0,160,0,0),
+                    "Out","Quad",0.15,true
+                )
 
-            task.wait()
-            list.Size = UDim2.new(0,160,0,layout.AbsoluteContentSize.Y)
+                if autoEquipEnabled then
+                    equipByType(selectedType)
+                end
+            end)
         end
 
-        dropdown.MouseButton1Click:Connect(function()
-            updatePosition()
-            refreshWeapons()
-            list.Visible = not list.Visible
-            list:TweenSize(
-                list.Visible and UDim2.new(0,160,0,layout.AbsoluteContentSize.Y)
+        task.wait()
+        list.Size = UDim2.new(0,160,0,layout.AbsoluteContentSize.Y)
+    end
+
+    dropdown.MouseButton1Click:Connect(function()
+        refreshWeapons()
+        list.Visible = not list.Visible
+
+        list:TweenSize(
+            list.Visible
+                and UDim2.new(0,160,0,layout.AbsoluteContentSize.Y)
                 or UDim2.new(0,160,0,0),
-                "Out","Quad",0.15,true
-            )
-        end)
+            "Out","Quad",0.15,true
+        )
     end)
-    y = y + 60
+
+end)
+
+y = y + 60
 
 createOptionRow(contentFrame, y, "TP to NPC", function(row)
 
