@@ -10,14 +10,14 @@ player.CharacterAdded:Connect(function(char)
 	character = char
 end)
 
--- GUI
+-- ================= GUI =================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 150)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
+MainFrame.Size = UDim2.new(0, 300, 0, 180)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -90)
 MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
@@ -77,10 +77,10 @@ CloseButton.MouseButton1Click:Connect(function()
 	ScreenGui:Destroy()
 end)
 
--- Auto Attack
+-- ================= Auto Attack =================
 local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0, 140, 0, 50)
-ToggleButton.Position = UDim2.new(0.5, -70, 0.5, -25)
+ToggleButton.Size = UDim2.new(0, 260, 0, 45)
+ToggleButton.Position = UDim2.new(0.5, -130, 0, 50)
 ToggleButton.Text = "Auto Attack: OFF"
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
@@ -93,20 +93,32 @@ ToggleButton.MouseButton1Click:Connect(function()
 	ToggleButton.Text = "Auto Attack: " .. (autoAttack and "ON" or "OFF")
 end)
 
--- 攻速（不要設太快，會被判異常）
-local attackInterval = 0.1
+-- ================= 攻擊設定 =================
+local attackInterval = 0.01 -- 攻速
 local attackTimer = 0
 
+local RANGE_MULTIPLIER = 1000 -- 永久放大倍數
+
+-- ================= 核心攻擊邏輯 =================
 RunService.Heartbeat:Connect(function(dt)
 	if not autoAttack then return end
 	if not character then return end
-	
+
 	local tool = character:FindFirstChildOfClass("Tool")
 	if not tool then return end
 
 	attackTimer += dt
-	if attackTimer >= attackInterval then
-		attackTimer = 0
-		tool:Activate()
+	if attackTimer < attackInterval then return end
+	attackTimer = 0
+
+	local handle = tool:FindFirstChild("Handle")
+	if handle and not handle:GetAttribute("HitboxExpanded") then
+		-- 永久放大 Hitbox
+		handle.Size = handle.Size * RANGE_MULTIPLIER
+		handle.Transparency = 1
+		handle.CanCollide = false
+		handle:SetAttribute("HitboxExpanded", true)
 	end
+
+	tool:Activate()
 end)
