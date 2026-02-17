@@ -53,6 +53,145 @@ local Window = WindUI:CreateWindow({
     }
 })
 
+        -- ================= 核心 ESP 功能 =================
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+        local LocalPlayer = Players.LocalPlayer
+
+        ESP_ENABLED = false
+        local ESP_COLOR = Color3.fromRGB(30,30,30)
+        local TEXT_COLOR = Color3.fromRGB(255,255,255)
+
+        local function createESP(player)
+            if player == LocalPlayer then return end
+            if not player.Character then return end
+            if player.Character:FindFirstChild("ESP_Highlight") then return end
+
+            local h = Instance.new("Highlight")
+            h.Name = "ESP_Highlight"
+            h.FillColor = ESP_COLOR
+            h.OutlineColor = Color3.fromRGB(255,255,255)
+            h.FillTransparency = 0.2
+            h.OutlineTransparency = 0
+            h.Adornee = player.Character
+            h.Parent = player.Character
+
+            local head = player.Character:FindFirstChild("Head")
+            if not head then return end
+
+            local bill = Instance.new("BillboardGui")
+            bill.Name = "ESP_Billboard"
+			bill.Size = UDim2.fromOffset(140,48)
+			bill.StudsOffset = Vector3.new(0,2.6,0)
+            bill.AlwaysOnTop = true
+            bill.Parent = head
+
+            local text = Instance.new("TextLabel", bill)
+            text.Name = "Info"
+            text.Position = UDim2.new(0,0,0,0)
+            text.BackgroundTransparency = 1
+            text.TextColor3 = TEXT_COLOR
+            text.TextStrokeTransparency = 0
+            text.Font = Enum.Font.SourceSansBold
+            text.TextYAlignment = Enum.TextYAlignment.Top
+            text.Text = player.Name
+			text.Size = UDim2.new(1, -8, 0.65, 0)
+			text.Position = UDim2.new(0,4,0,2)
+			text.TextScaled = true
+			text.TextWrapped = true
+			text.TextSize = 18
+			text.TextXAlignment = Enum.TextXAlignment.Center
+
+            local barBG = Instance.new("Frame", bill)
+            barBG.Name = "HP_Background"
+			barBG.Size = UDim2.new(0.9,0,0.12,0)
+			barBG.Position = UDim2.new(0.05,0,0.78,0)
+            barBG.BackgroundColor3 = Color3.fromRGB(50,50,50)
+            barBG.BorderSizePixel = 0
+
+            local barFG = Instance.new("Frame", barBG)
+            barFG.Name = "HP_Fill"
+            barFG.Size = UDim2.new(1,0,1,0)
+            barFG.Position = UDim2.new(0,0,0,0)
+            barFG.BackgroundColor3 = Color3.fromRGB(0,255,0)
+            barFG.BorderSizePixel = 0
+        end
+
+        local function removeESP(player)
+            if player == LocalPlayer then return end
+            if not player.Character then return end
+            local h = player.Character:FindFirstChild("ESP_Highlight")
+            if h then h:Destroy() end
+            local head = player.Character:FindFirstChild("Head")
+            if head then
+                local bill = head:FindFirstChild("ESP_Billboard")
+                if bill then bill:Destroy() end
+            end
+        end
+
+        local function updateESP()
+		if not ESP_ENABLED or not LocalPlayer.Character then return end
+		local myHRP = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+		if not myHRP then return end
+
+		for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer and p.Character then
+		local humanoid = p.Character:FindFirstChildOfClass("Humanoid")
+		local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+		local head = p.Character:FindFirstChild("Head")
+		if humanoid and hrp and head then
+		local bill = head:FindFirstChild("ESP_Billboard")
+		if bill then
+		local info = bill:FindFirstChild("Info")
+		local barFG = bill:FindFirstChild("HP_Background") and bill.HP_Background:FindFirstChild("HP_Fill")
+		if info then
+		local dist = math.floor((myHRP.Position - hrp.Position).Magnitude)
+		info.Text = string.format(
+		"%s\nHP: %d | %dm",
+		p.Name,
+		math.floor(humanoid.Health),
+		dist
+		)
+		end
+		if barFG then
+		local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth,0,1)
+		if healthRatio > 0.6 then
+		barFG.BackgroundColor3 = Color3.fromRGB(0,255,0)
+		elseif healthRatio > 0.3 then
+		barFG.BackgroundColor3 = Color3.fromRGB(255,255,0)
+		else
+		barFG.BackgroundColor3 = Color3.fromRGB(255,0,0)
+		end
+		barFG.Size = UDim2.new(healthRatio,0,1,0)
+					end
+				end
+			end
+		end
+	end
+end
+
+        -- 每幀更新
+        RunService.RenderStepped:Connect(updateESP)
+
+        -- 玩家事件
+        local function setupPlayerESP(p)
+            if p == LocalPlayer then return end
+            p.CharacterAdded:Connect(function()
+                task.wait(0.2)
+                if ESP_ENABLED then createESP(p) end
+            end)
+            if ESP_ENABLED and p.Character then
+                createESP(p)
+            end
+        end
+
+        for _, p in ipairs(Players:GetPlayers()) do
+            setupPlayerESP(p)
+        end
+
+        Players.PlayerAdded:Connect(setupPlayerESP)
+        Players.PlayerRemoving:Connect(removeESP)
+		
 -- 自動啟用 AutoBuso
 AutoBuso = true
 if AutoBuso then
@@ -134,6 +273,22 @@ local Tabs = {
 
 Tabs.General:Section({ Title = "通用" })
 
+Tabs.General:Toggle({
+    Title = "ESP",
+    Desc = "顯示玩家名稱、血量與距離",
+    Value = false,
+    Callback = function(state)
+        ESP_ENABLED = state
+
+        for _, p in ipairs(Players:GetPlayers()) do
+            if ESP_ENABLED then
+                createESP(p)
+            else
+                removeESP(p)
+            end
+        end
+    end
+})
 Tabs.Server:Section({ Title = "Server" })
 
 Tabs.Status:Section({ Title = "狀態" })
@@ -185,7 +340,7 @@ Tabs.Auto:Toggle({
     Value = false, -- 初始關閉
     Callback = function(state)
         AutoV4 = state
-        print("自動 v3 狀態:", AutoV4)
+        print("自動 v4 狀態:", AutoV4)
 
         -- 關閉時中斷舊連線
         if autoV4Connection then
