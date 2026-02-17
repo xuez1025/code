@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Player = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
 
 local WindUI = loadstring(game:HttpGet(
@@ -75,7 +76,6 @@ task.spawn(function()
     end
 end)
 
-
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local AutoV3 = {
@@ -101,6 +101,22 @@ end
 
 local function StopAutoV3()
     AutoV3.Enabled = false
+end
+
+--// 狀態
+local AutoV4 = false
+local autoV4Connection = nil
+
+-- ================= 取得 Awakening RemoteFunction =================
+local function getAwakeningRemote()
+    local backpack = Player:FindFirstChild("Backpack")
+    if backpack then
+        local awakening = backpack:FindFirstChild("Awakening")
+        if awakening then
+            return awakening:FindFirstChild("RemoteFunction")
+        end
+    end
+    return nil
 end
 
 local Tabs = {
@@ -146,6 +162,7 @@ Tabs.Auto:Toggle({
         end
     end
 })
+
 Tabs.Auto:Toggle({
     Title = "自動 v3",
     Desc = "自動開啟或關閉v3",
@@ -158,6 +175,43 @@ Tabs.Auto:Toggle({
             StartAutoV3()
         else
             StopAutoV3()
+        end
+    end
+})
+
+Tabs.Auto:Toggle({
+    Title = "自動 V4",
+    Desc = "自動開啟或關閉v4",
+    Value = false, -- 初始關閉
+    Callback = function(state)
+        AutoV4 = state
+        print("自動 v3 狀態:", AutoV4)
+
+        -- 關閉時中斷舊連線
+        if autoV4Connection then
+            autoV4Connection:Disconnect()
+            autoV4Connection = nil
+        end
+
+        -- 開啟自動 V4
+        if AutoV4 then
+            -- 立即呼叫一次
+            pcall(function()
+                local remote = getAwakeningRemote()
+                if remote then
+                    remote:InvokeServer(true)
+                end
+            end)
+
+            -- Heartbeat 持續呼叫
+            autoV4Connection = RunService.Heartbeat:Connect(function()
+                local remote = getAwakeningRemote()
+                if remote then
+                    pcall(function()
+                        remote:InvokeServer(true)
+                    end)
+                end
+            end)
         end
     end
 })
