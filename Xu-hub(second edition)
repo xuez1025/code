@@ -1,1 +1,44 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+-- 建立視窗
+local Window = WindUI:CreateWindow({
+    Title = "Xu-hub",
+    Icon = "user-check",
+    Author = "by xuez1025",
+    Folder = "Xu-Hub",
+    Size = UDim2.fromOffset(600, 400),
+    Transparent = true,
+    Theme = "Dark",
+})
 
+local Tabs = {
+    Auto     = Window:Tab({ Title = "自動",   Icon = "cpu" }),
+    General  = Window:Tab({ Title = "通用",   Icon = "house" }),
+    Server   = Window:Tab({ Title = "Server", Icon = "server" }),
+    Status   = Window:Tab({ Title = "狀態",   Icon = "activity" }),
+    PVP      = Window:Tab({ Title = "PVP",    Icon = "swords" }),
+    Farm     = Window:Tab({ Title = "Farm",   Icon = "leaf" }),
+    Settings = Window:Tab({ Title = "設定",   Icon = "settings" }),
+    Teleport = Window:Tab({ Title = "傳送",   Icon = "map-pin" }),
+    Fun      = Window:Tab({ Title = "娛樂",   Icon = "smile" }),
+    Other    = Window:Tab({ Title = "其他",   Icon = "ellipsis" }),
+}
+
+Tabs.Auto:Section({ Title = "自動" })
+
+Tabs.General:Section({ Title = "通用" })
+
+Tabs.Server:Section({ Title = "Server" })
+
+Tabs.Status:Section({ Title = "狀態" })
+
+Tabs.PVP:Section({ Title = "PVP" })
+
+Tabs.Farm:Section({ Title = "Farm Setting" })
+
+Tabs.Settings:Section({ Title = "設定" })
+
+Tabs.Teleport:Section({ Title = "傳送" })
+
+Tabs.Fun:Section({ Title = "娛樂" })
+
+Tabs.Other:Section({ Title = "其他" })
