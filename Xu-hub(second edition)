@@ -76,23 +76,33 @@ task.spawn(function()
 end)
 
 local Tabs = {
-    Auto     = Window:Tab({ Title = "自動",   Icon = "cpu" }),
     General  = Window:Tab({ Title = "通用",   Icon = "house" }),
     Server   = Window:Tab({ Title = "Server", Icon = "server" }),
     Status   = Window:Tab({ Title = "狀態",   Icon = "activity" }),
     PVP      = Window:Tab({ Title = "PVP",    Icon = "swords" }),
     Farm     = Window:Tab({ Title = "Farm",   Icon = "leaf" }),
+    Auto     = Window:Tab({ Title = "自動",   Icon = "cpu" }),
     Settings = Window:Tab({ Title = "設定",   Icon = "settings" }),
     Teleport = Window:Tab({ Title = "傳送",   Icon = "map-pin" }),
     Fun      = Window:Tab({ Title = "娛樂",   Icon = "smile" }),
     Other    = Window:Tab({ Title = "其他",   Icon = "ellipsis" }),
 }
 
+Tabs.General:Section({ Title = "通用" })
+
+Tabs.Server:Section({ Title = "Server" })
+
+Tabs.Status:Section({ Title = "狀態" })
+
+Tabs.PVP:Section({ Title = "PVP" })
+
+Tabs.Farm:Section({ Title = "Farm Setting" })
+
 Tabs.Auto:Section({ Title = "自動" })
 
 Tabs.Auto:Toggle({
     Title = "自動武裝色",
-    Desc = "開啟或關閉自動武裝色",
+    Desc = "自動開啟或關閉武裝色",
     Value = true, -- 初始為 ON
     Callback = function(state)
         AutoBuso = state
@@ -108,16 +118,6 @@ Tabs.Auto:Toggle({
         end
     end
 })
-
-Tabs.General:Section({ Title = "通用" })
-
-Tabs.Server:Section({ Title = "Server" })
-
-Tabs.Status:Section({ Title = "狀態" })
-
-Tabs.PVP:Section({ Title = "PVP" })
-
-Tabs.Farm:Section({ Title = "Farm Setting" })
 
 Tabs.Settings:Section({ Title = "設定" })
 
