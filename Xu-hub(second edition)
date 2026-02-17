@@ -3,9 +3,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Player = Players.LocalPlayer
 local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
 
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local WindUI = loadstring(game:HttpGet(
+    "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+))()
 
--- 建立視窗
+-- 建立視窗（已整合 OpenButton）
 local Window = WindUI:CreateWindow({
     Title = "Xu-hub",
     Icon = "user-check",
@@ -14,6 +16,22 @@ local Window = WindUI:CreateWindow({
     Size = UDim2.fromOffset(600, 400),
     Transparent = true,
     Theme = "Dark",
+
+    -- 🔽 縮小後顯示的浮動按鈕
+    OpenButton = {
+        Title = "Open Xu-hub",
+        CornerRadius = UDim.new(1, 0), -- 完全圓形
+        StrokeThickness = 3,
+        Enabled = true,
+        OnlyMobile = false,
+        Draggable = true,
+        OnlyIcon = false,
+
+        Color = ColorSequence.new(
+    Color3.fromHex("#7F00FF"),
+    Color3.fromHex("#00C6FF")
+),
+    }
 })
 
 -- 自動啟用 AutoBuso
