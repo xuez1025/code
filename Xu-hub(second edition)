@@ -311,6 +311,60 @@ function setWaterWalkState(state)
     end
 end
 
+-- 核心 Hitbox 邏輯
+local Hitbox = {
+    Enabled = false,
+    Size = 1,
+    Transparency = 0.5,
+    Connections = {}
+}
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local function getRoot(character)
+    return character:FindFirstChild("HumanoidRootPart")
+end
+
+function Hitbox:ApplyToPlayer(plr)
+    if plr == LocalPlayer then return end
+    if not plr.Character then return end
+
+    local root = getRoot(plr.Character)
+    if root and root:IsA("BasePart") then
+        root.CanCollide = false
+        root.Size = Vector3.new(self.Size, self.Size, self.Size)
+        root.Transparency = self.Transparency
+    end
+end
+
+function Hitbox:ApplyAll()
+    for _, plr in pairs(Players:GetPlayers()) do
+        self:ApplyToPlayer(plr)
+    end
+end
+
+function Hitbox:Start()
+    if self.Enabled then return end
+    self.Enabled = true
+
+    self:ApplyAll()
+
+    -- 玩家重生時重新套用
+    self.Connections.PlayerAdded = Players.PlayerAdded:Connect(function(plr)
+        plr.CharacterAdded:Connect(function()
+            task.wait(1)
+            if self.Enabled then
+                self:ApplyToPlayer(plr)
+            end
+        end)
+    end)
+end
+
+function Hitbox:Stop()
+    self.Enabled = false
+end
+
 -- 自動啟用 AutoBuso
 AutoBuso = true
 if AutoBuso then
@@ -425,6 +479,21 @@ Tabs.General:Toggle({
     Value = false,
     Callback = function(state)
         setWaterWalkState(state)
+    end
+})
+
+
+Tabs.General:Slider({
+    Title = "碰撞箱",
+    Desc = "調整碰撞箱大小",
+    Value = {
+        Min = 1,
+        Max = 20,
+        Default = Hitbox.Size
+    },
+    Callback = function(value)
+        Hitbox.Size = value
+        Hitbox:ApplyAll()
     end
 })
 
