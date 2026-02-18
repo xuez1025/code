@@ -1116,6 +1116,46 @@ local function RemoveFog()
     Lighting.FogEnd = 9e9
 end
 
+local AntiAFK_ENABLED = false
+local AntiAFK_Connection
+
+local function EnableAntiAFK()
+    if AntiAFK_ENABLED then return end
+    AntiAFK_ENABLED = true
+
+    if getconnections then
+        for _, connection in pairs(getconnections(Players.LocalPlayer.Idled)) do
+            if connection.Disable then
+                connection:Disable()
+            elseif connection.Disconnect then
+                connection:Disconnect()
+            end
+        end
+    else
+        AntiAFK_Connection = Players.LocalPlayer.Idled:Connect(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
+    end
+
+    print("Anti-AFK ON")
+end
+
+local function DisableAntiAFK()
+    if not AntiAFK_ENABLED then return end
+    AntiAFK_ENABLED = false
+
+    if AntiAFK_Connection then
+        AntiAFK_Connection:Disconnect()
+        AntiAFK_Connection = nil
+    end
+
+    print("Anti-AFK OFF")
+end
+
+-- ⭐ 進入遊戲就啟用
+EnableAntiAFK()
+
 local Tabs = {
     General  = Window:Tab({ Title = "通用",   Icon = "house" }),
     Server   = Window:Tab({ Title = "Server", Icon = "server" }),
@@ -1599,6 +1639,19 @@ Tabs.Settings:Button({
 })
 
 Tabs.Settings:Section({ Title = "遊戲內" })
+
+Tabs.Settings:Toggle({
+    Title = "Anti AFK",
+    Desc = "防止閒置被踢出",
+    Value = true, -- ⭐ 初始為 ON
+    Callback = function(state)
+        if state then
+            EnableAntiAFK()
+        else
+            DisableAntiAFK()
+        end
+    end
+})
 
 Tabs.Settings:Toggle({
     Title = "移動速度",
