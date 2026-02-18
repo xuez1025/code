@@ -7,6 +7,7 @@ local LocalPlayer = Players.LocalPlayer
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local PlaceId = game.PlaceId
+local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
 
 local WindUI = loadstring(game:HttpGet(
@@ -1354,7 +1355,110 @@ Tabs.Server:Button({
     end
 })
 
-Tabs.Status:Section({ Title = "狀態" })
+-- ====== About Section ======
+local AboutSection = Tabs.Status:Section({
+    Title = "狀態:", 
+    TextSize = 24,
+    FontWeight = Enum.FontWeight.SemiBold,
+})
+
+-- 空格
+Tabs.Status:Space()
+
+-- ====== 各項資訊 Section ======
+local PlayerSection = Tabs.Status:Section({
+    Title = "Players: ...",
+    TextSize = 18,
+    TextTransparency = 0.35,
+    FontWeight = Enum.FontWeight.Medium,
+})
+
+local TimeSection = Tabs.Status:Section({
+    Title = "Local Time: ...",
+    TextSize = 18,
+    TextTransparency = 0.35,
+    FontWeight = Enum.FontWeight.Medium,
+})
+
+local PingSection = Tabs.Status:Section({
+    Title = "Ping: ...",
+    TextSize = 18,
+    TextTransparency = 0.35,
+    FontWeight = Enum.FontWeight.Medium,
+})
+
+local FPSSection = Tabs.Status:Section({
+    Title = "FPS: ...",
+    TextSize = 18,
+    TextTransparency = 0.35,
+    FontWeight = Enum.FontWeight.Medium,
+})
+
+local GameTimeSection = Tabs.Status:Section({
+    Title = "Game Time: ...",
+    TextSize = 18,
+    TextTransparency = 0.35,
+    FontWeight = Enum.FontWeight.Medium,
+})
+
+local DiscordSection = Tabs.Status:Section({
+    Title = "Discord: https://discord.gg/ptec6vhQtf",
+    TextSize = 18,
+    TextTransparency = 0.35,
+    FontWeight = Enum.FontWeight.Medium,
+})
+
+-- ====== Discord Copy Button (使用 Notify 風格) ======
+Tabs.Status:Button({
+    Title = "Copy Discord Link",
+    Callback = function()
+        setclipboard("https://discord.gg/ptec6vhQtf") -- 複製連結
+        WindUI:Notify({ -- 顯示通知
+            Title = "Discord Link",
+            Content = "已成功複製 Discord 連結！",
+            Duration = 3
+        })
+    end
+})
+
+-- ====== 更新資訊函數 ======
+task.spawn(function()
+    while true do
+        task.wait(0.5) -- 每 0.5 秒更新一次
+
+        -- 玩家數
+        if PlayerSection.SetTitle then
+            PlayerSection:SetTitle(string.format("Players: %d", #Players:GetPlayers()))
+        end
+
+        -- 本地時間
+        local t = os.date("*t")
+        if TimeSection.SetTitle then
+            TimeSection:SetTitle(string.format("Local Time: %04d-%02d-%02d %02d:%02d", t.year, t.month, t.day, t.hour, t.min))
+        end
+
+        -- Ping
+        local ping = LocalPlayer:GetNetworkPing() * 1000
+        if PingSection.SetTitle then
+            PingSection:SetTitle(string.format("Ping: %.0f ms", ping))
+        end
+
+        -- FPS
+        local fps = Workspace:GetRealPhysicsFPS()
+        if FPSSection.SetTitle then
+            FPSSection:SetTitle(string.format("FPS: %.0f", fps))
+        end
+
+        -- Game Time
+        local GameTime = math.floor(Workspace.DistributedGameTime + 0.5)
+        local Hour = math.floor(GameTime / 3600) % 24
+        local Minute = math.floor(GameTime / 60) % 60
+        local Second = GameTime % 60
+        if GameTimeSection.SetTitle then
+            GameTimeSection:SetTitle(string.format("Game Time: %02d:%02d:%02d", Hour, Minute, Second))
+        end
+    end
+end)
 
 Tabs.PVP:Section({ Title = "PVP" })
 
