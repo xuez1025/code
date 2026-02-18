@@ -601,6 +601,114 @@ end)
 
 monitorCurrentTool()
 
+-- ===== Fly + Bring 核心狀態 =====
+local FlyTP = {
+    Enabled = false,
+    HoverHeight = 10,
+    SearchRange = 500
+}
+
+local BringNPC = {
+    Enabled = false,
+    PullRange = 100
+}
+
+local flyConn
+local pullConn
+local targetNPC
+
+local function stopFly()
+    if flyConn then
+        flyConn:Disconnect()
+        flyConn = nil
+    end
+    FlyTP.Enabled = false
+end
+
+local function startFly()
+    if flyConn then return end
+
+    flyConn = RunService.Heartbeat:Connect(function()
+        if not FlyTP.Enabled then return end
+
+        local char = player.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        local enemiesFolder = workspace:FindFirstChild("Enemies")
+        if not enemiesFolder then return end
+
+        local closest, dist = nil, math.huge
+
+        for _, npc in pairs(enemiesFolder:GetChildren()) do
+            if npc:FindFirstChild("Humanoid")
+                and npc.Humanoid.Health > 0
+                and npc.PrimaryPart then
+
+                local p = npc.PrimaryPart.Position
+                local d = (p - hrp.Position).Magnitude
+
+                if d < dist and d <= FlyTP.SearchRange then
+                    dist = d
+                    closest = npc
+                end
+            end
+        end
+
+        targetNPC = closest
+
+        if targetNPC and targetNPC.PrimaryPart then
+            local tpos = Vector3.new(
+                targetNPC.PrimaryPart.Position.X,
+                targetNPC.PrimaryPart.Position.Y + FlyTP.HoverHeight,
+                targetNPC.PrimaryPart.Position.Z
+            )
+            hrp.CFrame = CFrame.new(tpos)
+        end
+    end)
+end
+
+local function stopBring()
+    if pullConn then
+        pullConn:Disconnect()
+        pullConn = nil
+    end
+    BringNPC.Enabled = false
+end
+
+local function startBring()
+    if pullConn then return end
+
+    pullConn = RunService.Heartbeat:Connect(function()
+        if not BringNPC.Enabled then return end
+        if not targetNPC or not targetNPC.PrimaryPart then return end
+
+        local enemiesFolder = workspace:FindFirstChild("Enemies")
+        if not enemiesFolder then return end
+
+        local basePos = targetNPC.PrimaryPart.Position
+
+        for _, npc in pairs(enemiesFolder:GetChildren()) do
+            if npc ~= targetNPC
+                and npc:FindFirstChild("Humanoid")
+                and npc.Humanoid.Health > 0
+                and npc.PrimaryPart then
+
+                local dist = (npc.PrimaryPart.Position - basePos).Magnitude
+
+                if dist <= BringNPC.PullRange then
+                    local newPos = Vector3.new(
+                        basePos.X,
+                        npc.PrimaryPart.Position.Y,
+                        basePos.Z
+                    )
+                    npc:SetPrimaryPartCFrame(CFrame.new(newPos))
+                end
+            end
+        end
+    end)
+end
+
 -- 自動啟用 AutoBuso
 AutoBuso = true
 if AutoBuso then
@@ -905,9 +1013,22 @@ Tabs.PVP:Toggle({
 
 Tabs.Farm:Section({ Title = "Farm Setting" })
 
+Tabs.Farm:Dropdown({
+    Title = "選擇配置",
+    Multi = false,
+    Values = { "Melee", "Blox Fruit", "Sword", "Gun" },
+    Default = "Melee",
+    Callback = function(option)
+        selectedType = option
+        if autoEquipEnabled then
+            equipByType(selectedType)
+        end
+    end
+})
+
 Tabs.Farm:Toggle({
     Title = "自動裝備",
-    Desc = "開啟或關閉自動裝備功能",
+    Desc = "自動切換到選擇的配置",
     Value = false,
     Callback = function(state)
         autoEquipEnabled = state
@@ -917,16 +1038,70 @@ Tabs.Farm:Toggle({
     end
 })
 
-Tabs.Farm:Dropdown({
-    Title = "選擇武器類型",
-    Multi = false,
-    Values = { "Melee", "Fruit", "Sword", "Gun" },
-    Default = "Melee",
-    Callback = function(option)
-        selectedType = option
-        if autoEquipEnabled then
-            equipByType(selectedType)
+Tabs.Farm:Toggle({
+    Title = "TP to NPC",
+    Desc = "自動傳送到NPC",
+    Value = FlyTP.Enabled,
+    Callback = function(state)
+        FlyTP.Enabled = state
+        if state then
+            startFly()
+        else
+            stopFly()
         end
+    end
+})
+
+Tabs.Farm:Toggle({
+    Title = "Bring NPC",
+    Desc = "把附近NPC帶過來",
+    Value = BringNPC.Enabled,
+    Callback = function(state)
+        BringNPC.Enabled = state
+        if state then
+            startBring()
+        else
+            stopBring()
+        end
+    end
+})
+
+Tabs.Farm:Slider({
+    Title = "飛行高度",
+    Desc = "設定飛行高度 (50m)",
+    Value = {
+        Min = 0,
+        Max = 50,
+        Default = FlyTP.HoverHeight
+    },
+    Callback = function(value)
+        FlyTP.HoverHeight = value
+    end
+})
+
+Tabs.Farm:Slider({
+    Title = "搜尋範圍",
+    Desc = "設定NPC搜尋範圍 (2000m)",
+    Value = {
+        Min = 0,
+        Max = 2000,
+        Default = FlyTP.SearchRange
+    },
+    Callback = function(value)
+        FlyTP.SearchRange = value
+    end
+})
+
+Tabs.Farm:Slider({
+    Title = "拉怪範圍",
+    Desc = "設定拉怪距離 (250)m)",
+    Value = {
+        Min = 0,
+        Max = 250,
+        Default = BringNPC.PullRange
+    },
+    Callback = function(value)
+        BringNPC.PullRange = value
     end
 })
 
@@ -1023,4 +1198,3 @@ Tabs.Teleport:Section({ Title = "傳送" })
 Tabs.Fun:Section({ Title = "娛樂" })
 
 Tabs.Other:Section({ Title = "其他" })
-
