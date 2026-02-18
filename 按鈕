@@ -1,18 +1,18 @@
--- ===== Services =====
+-- ================= Services =================
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- ===== 傳送點（5 個）=====
+-- ================= 傳送點設定 =================
 local Teleports = {
-    {Name = "傳送 1", CFrame = CFrame.new(, , )},
-    {Name = "傳送 2", CFrame = CFrame.new(, , )},
-    {Name = "傳送 3", CFrame = CFrame.new(, , )},
-    {Name = "傳送 4", CFrame = CFrame.new(, , )},
-    {Name = "傳送 5", CFrame = CFrame.new(, , )},
+    {Name = "傳送 1", CFrame = CFrame.new(0, 5, 0)},
+    {Name = "傳送 2", CFrame = CFrame.new(50, 5, 0)},
+    {Name = "傳送 3", CFrame = CFrame.new(0, 5, 50)},
+    {Name = "傳送 4", CFrame = CFrame.new(-50, 5, 0)},
+    {Name = "傳送 5", CFrame = CFrame.new(0, 5, -50)},
 }
 
--- ===== GUI =====
+-- ================= GUI =================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "MultiTeleportGUI"
 ScreenGui.ResetOnSpawn = false
@@ -23,11 +23,29 @@ Frame.Size = UDim2.new(0, 200, 0, 300)
 Frame.Position = UDim2.new(0.7, 0, 0.5, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 Frame.BorderSizePixel = 0
-Frame.Active = true -- 必須
+Frame.Active = true
 Frame.Parent = ScreenGui
 Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
 
--- ===== 拖動功能 =====
+-- ================= 關閉按鈕 X =================
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 28, 0, 28)
+CloseButton.Position = UDim2.new(1, -34, 0, 6)
+CloseButton.Text = "X"
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.TextSize = 14
+CloseButton.TextColor3 = Color3.new(1, 1, 1)
+CloseButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+CloseButton.BorderSizePixel = 0
+CloseButton.Parent = Frame
+Instance.new("UICorner", CloseButton).CornerRadius = UDim.new(1, 0)
+
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- ================= 拖動功能 =================
 local dragging = false
 local dragStart
 local startPos
@@ -58,14 +76,14 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- ===== 排版 =====
+-- ================= 排版 =================
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Padding = UDim.new(0, 10)
 UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 UIListLayout.Parent = Frame
 
--- ===== 建立按鈕 =====
+-- ================= 建立傳送按鈕 =================
 for _, data in ipairs(Teleports) do
     local Button = Instance.new("TextButton")
     Button.Size = UDim2.new(1, -20, 0, 45)
@@ -74,6 +92,7 @@ for _, data in ipairs(Teleports) do
     Button.TextSize = 16
     Button.TextColor3 = Color3.new(1, 1, 1)
     Button.BackgroundColor3 = Color3.fromRGB(70, 130, 255)
+    Button.BorderSizePixel = 0
     Button.Parent = Frame
     Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 8)
 
