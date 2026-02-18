@@ -1156,6 +1156,32 @@ end
 -- ⭐ 進入遊戲就啟用
 EnableAntiAFK()
 
+local JumpSettings = {
+    Enabled = false,
+    JumpPower = 100,
+    MaxJumpPower = 500
+}
+
+local function updateJumpPower()
+    local character = LocalPlayer.Character
+    if not character then return end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    if humanoid.UseJumpPower then
+        humanoid.JumpPower = JumpSettings.Enabled and JumpSettings.JumpPower or 50
+    else
+        humanoid.JumpHeight = JumpSettings.Enabled and JumpSettings.JumpPower or 7.2
+    end
+end
+
+-- 角色重生時自動套用
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    updateJumpPower()
+end)
+
 local Tabs = {
     General  = Window:Tab({ Title = "通用",   Icon = "house" }),
     Server   = Window:Tab({ Title = "Server", Icon = "server" }),
@@ -1672,6 +1698,30 @@ Tabs.Settings:Slider({
     },
     Callback = function(value)
         SLIDE_MAGNITUDE = value
+    end
+})
+
+Tabs.Settings:Toggle({
+    Title = "跳躍開關",
+    Desc = "開啟或關閉自訂跳躍高度",
+    Value = JumpSettings.Enabled,
+    Callback = function(state)
+        JumpSettings.Enabled = state
+        updateJumpPower()
+    end
+})
+
+Tabs.Settings:Slider({
+    Title = "跳躍高度",
+    Desc = "調整跳躍高度（0 ~ 500）",
+    Value = {
+        Min = 0,
+        Max = JumpSettings.MaxJumpPower,
+        Default = JumpSettings.JumpPower
+    },
+    Callback = function(value)
+        JumpSettings.JumpPower = value
+        updateJumpPower()
     end
 })
 
