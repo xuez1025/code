@@ -820,6 +820,149 @@ task.spawn(function()
     end
 end)
 
+-- ================= 核心參數 =================
+local SLIDE_MAGNITUDE = 200
+local ACCELERATION = 12
+local DECELERATION = 18
+local MAX_SPEED = 1000
+
+local moving = false
+local moveConn
+local moveKeys = {W=false, A=false, S=false, D=false}
+local currentVelocity = Vector3.zero
+local wasMoving = false -- 原本滑動狀態
+local slideLocked = false -- 上船鎖定滑動
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local character, root, humanoid
+
+-- ================= 核心函數 =================
+local function setupCharacter(char)
+    character = char
+    root = char:WaitForChild("HumanoidRootPart")
+    humanoid = char:WaitForChild("Humanoid")
+end
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+player.CharacterAdded:Connect(setupCharacter)
+
+-- ================= WASD 控制 =================
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.W then moveKeys.W = true end
+    if input.KeyCode == Enum.KeyCode.A then moveKeys.A = true end
+    if input.KeyCode == Enum.KeyCode.S then moveKeys.S = true end
+    if input.KeyCode == Enum.KeyCode.D then moveKeys.D = true end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.W then moveKeys.W = false end
+    if input.KeyCode == Enum.KeyCode.A then moveKeys.A = false end
+    if input.KeyCode == Enum.KeyCode.S then moveKeys.S = false end
+    if input.KeyCode == Enum.KeyCode.D then moveKeys.D = false end
+end)
+
+-- ================= 移動核心 =================
+local function startMove()
+    if moving or not root or slideLocked then return end
+    moving = true
+    wasMoving = true
+
+    moveConn = RunService.RenderStepped:Connect(function(dt)
+        if not root or ACTIVE_SEAT then return end
+        if slideLocked then return end
+
+        local cam = Workspace.CurrentCamera
+        local look = Vector3.new(cam.CFrame.LookVector.X,0,cam.CFrame.LookVector.Z)
+        local right = Vector3.new(cam.CFrame.RightVector.X,0,cam.CFrame.RightVector.Z)
+
+        local dir = Vector3.zero
+        if moveKeys.W then dir += look end
+        if moveKeys.S then dir -= look end
+        if moveKeys.A then dir -= right end
+        if moveKeys.D then dir += right end
+        if dir.Magnitude > 0 then dir = dir.Unit end
+
+        local targetVelocity = dir * SLIDE_MAGNITUDE
+        local lerpSpeed = dir.Magnitude > 0 and ACCELERATION or DECELERATION
+        currentVelocity = currentVelocity:Lerp(targetVelocity, math.clamp(lerpSpeed*dt,0,1))
+
+        root.CFrame += Vector3.new(currentVelocity.X,0,currentVelocity.Z) * dt
+    end)
+end
+
+local function stopMove()
+    moving = false
+    if moveConn then
+        moveConn:Disconnect()
+        moveConn = nil
+    end
+end
+
+local function toggleMove(state)
+    if slideLocked and state then return end
+    if state then
+        startMove()
+    else
+        stopMove()
+        wasMoving = false
+        currentVelocity = Vector3.zero
+    end
+end
+
+-- ================= 船速系統 =================
+local BoatSpeedSettings = {
+    Enabled = false,
+    Speed = 200,
+    MaxSpeed = 500
+}
+local ACTIVE_SEAT = nil
+local ORIGINAL_SEAT_SPEED = nil
+
+local function updateBoatSpeed()
+    if not ACTIVE_SEAT then return end
+    if BoatSpeedSettings.Enabled then
+        ACTIVE_SEAT.MaxSpeed = BoatSpeedSettings.Speed
+    elseif ORIGINAL_SEAT_SPEED then
+        ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
+    end
+end
+
+-- ================= 船座監聽 =================
+local function onCharacter(char)
+    local hum = char:WaitForChild("Humanoid")
+    hum.Seated:Connect(function(sitting, seat)
+        if seat and seat:IsA("VehicleSeat") and sitting then
+            slideLocked = true
+            if moving then stopMove() end
+
+            ACTIVE_SEAT = seat
+            ORIGINAL_SEAT_SPEED = seat.MaxSpeed
+            updateBoatSpeed()
+        else
+            slideLocked = false
+            if ACTIVE_SEAT and ORIGINAL_SEAT_SPEED then
+                ACTIVE_SEAT.MaxSpeed = ORIGINAL_SEAT_SPEED
+            end
+            ACTIVE_SEAT = nil
+            ORIGINAL_SEAT_SPEED = nil
+
+            if wasMoving then
+                startMove()
+            else
+                currentVelocity = Vector3.zero
+            end
+        end
+    end)
+end
+
+if player.Character then onCharacter(player.Character) end
+player.CharacterAdded:Connect(onCharacter)
+
 -- 自動啟用 AutoBuso
 AutoBuso = true
 if AutoBuso then
@@ -1235,6 +1378,32 @@ Tabs.Farm:Toggle({
     end
 })
 
+Tabs.Farm:Section({ Title = "船" })
+
+Tabs.Farm:Toggle({
+    Title = "船隻加速",
+    Desc = "啟用或關閉船速度修改",
+    Value = BoatSpeedSettings.Enabled,
+    Callback = function(state)
+        BoatSpeedSettings.Enabled = state
+        updateBoatSpeed()
+    end
+})
+
+Tabs.Farm:Slider({
+    Title = "船速調整",
+    Desc = "調整船最大速度",
+    Value = {
+        Min = 0,
+        Max = BoatSpeedSettings.MaxSpeed,
+        Default = BoatSpeedSettings.Speed
+    },
+    Callback = function(value)
+        BoatSpeedSettings.Speed = value
+        updateBoatSpeed()
+    end
+})
+
 Tabs.Auto:Section({ Title = "自動" })
 
 Tabs.Auto:Toggle({
@@ -1320,6 +1489,28 @@ local Keybind = Tabs.Settings:Keybind({
         -- Enum.KeyCode[v] 可將字母轉為 Roblox KeyCode
         Window:SetToggleKey(Enum.KeyCode[v])
         print("UI 開啟快捷鍵已設定為:", v)
+    end
+})
+
+Tabs.Settings:Toggle({
+    Title = "移動速度",
+    Desc = "開啟或關閉 WASD 移動滑動",
+    Value = false,
+    Callback = function(state)
+        toggleMove(state)
+    end
+})
+
+Tabs.Settings:Slider({
+    Title = "速度調整",
+    Desc = "調整角色滑動速度",
+    Value = {
+        Min = 0,
+        Max = 1000,
+        Default = SLIDE_MAGNITUDE
+    },
+    Callback = function(value)
+        SLIDE_MAGNITUDE = value
     end
 })
 
