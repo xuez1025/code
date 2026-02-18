@@ -815,8 +815,21 @@ Tabs.Auto:Toggle({
 
 Tabs.Settings:Section({ Title = "設定" })
 
+-- Keybind 按鈕，可改變 UI 開啟快捷鍵
+local Keybind = Tabs.Settings:Keybind({
+    Title = "快捷鍵",
+    Desc = "可更改",
+    Value = "G", -- 預設按鍵
+    Callback = function(v)
+        -- Enum.KeyCode[v] 可將字母轉為 Roblox KeyCode
+        Window:SetToggleKey(Enum.KeyCode[v])
+        print("UI 開啟快捷鍵已設定為:", v)
+    end
+})
+
 Tabs.Teleport:Section({ Title = "傳送" })
 
 Tabs.Fun:Section({ Title = "娛樂" })
 
 Tabs.Other:Section({ Title = "其他" })
+
