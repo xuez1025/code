@@ -43,7 +43,7 @@ User = {
 
     -- 🔽 縮小後顯示的浮動按鈕
     OpenButton = {
-        Title = "Open Xu-hub",
+        Title = "Xu-hub",
         CornerRadius = UDim.new(1, 0), -- 完全圓形
         StrokeThickness = 3,
         Enabled = true,
@@ -1182,6 +1182,23 @@ LocalPlayer.CharacterAdded:Connect(function()
     updateJumpPower()
 end)
 
+-- 核心功能：移除 Lava
+local function removeLava()
+    for _, v in pairs(game.Workspace:GetDescendants()) do
+        if v.Name == "LavaParts" and v.Parent and v.Parent.Name == "CircleIsland" 
+            and v.Parent.Parent and v.Parent.Parent.Name == "Map" then
+            v:Destroy()
+        end
+    end
+
+    for _, v in pairs(game.ReplicatedStorage:GetDescendants()) do
+        if v.Name == "LavaParts" and v.Parent and v.Parent.Name == "CircleIsland" 
+            and v.Parent.Parent and v.Parent.Parent.Name == "Map" then
+            v:Destroy()
+        end
+    end
+end
+
 local Tabs = {
     General  = Window:Tab({ Title = "通用",   Icon = "house" }),
     Server   = Window:Tab({ Title = "Server", Icon = "server" }),
@@ -1233,6 +1250,17 @@ Tabs.General:Toggle({
     end
 })
 
+Tabs.General:Button({
+    Title = "Remove Lava",
+    Desc = "按一次觸發",
+    Callback = function()
+        -- 可加上簡單動畫效果（選擇性）
+        local TweenService = game:GetService("TweenService")
+
+        -- 呼叫核心功能
+        removeLava()
+    end
+})
 
 Tabs.General:Slider({
     Title = "碰撞箱",
