@@ -397,6 +397,64 @@ player.CharacterAdded:Connect(function(char)
     character = char
 end)
 
+-- ===== FastAttack 核心 =====
+_G.FastAttack = true
+
+local Settings = {
+    AutoClick = true,
+    Distance = 50,
+    AttackInterval = 0.01,
+    MaxTargets = 20,
+}
+
+
+local function IsAlive(char)
+    local hum = char:FindFirstChild("Humanoid")
+    return hum and hum.Health > 0
+end
+
+local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
+local RegisterHit = Net:WaitForChild("RE/RegisterHit")
+
+local EnemiesFolder = workspace:WaitForChild("Enemies")
+local CharactersFolder = workspace:WaitForChild("Characters")
+
+task.spawn(function()
+    while true do
+        if _G.FastAttack and Settings.AutoClick then
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local targets = {}
+
+                for _, folder in ipairs({EnemiesFolder, CharactersFolder}) do
+                    for _, obj in ipairs(folder:GetChildren()) do
+                        if obj ~= char and IsAlive(obj) then
+                            local head = obj:FindFirstChild("Head")
+                            if head then
+                                local dist = (head.Position - root.Position).Magnitude
+                                if dist <= Settings.Distance then
+                                    table.insert(targets, {obj, head})
+                                    if #targets >= Settings.MaxTargets then break end
+                                end
+                            end
+                        end
+                    end
+                    if #targets >= Settings.MaxTargets then break end
+                end
+
+                if #targets > 0 then
+                    RegisterAttack:FireServer(0)
+                    RegisterHit:FireServer(targets[1][2], targets)
+                end
+            end
+        end
+        task.wait(Settings.AttackInterval)
+    end
+end)
+
+
 -- 自動啟用 AutoBuso
 AutoBuso = true
 if AutoBuso then
@@ -610,6 +668,29 @@ Tabs.Server:Button({
 Tabs.Status:Section({ Title = "狀態" })
 
 Tabs.PVP:Section({ Title = "PVP" })
+
+Tabs.PVP:Toggle({
+    Title = "自動攻擊",
+    Desc = "FastAttack 開關",
+    Value = true,
+    Callback = function(state)
+        _G.FastAttack = state
+        Settings.AutoClick = state
+    end
+})
+
+Tabs.PVP:Slider({
+    Title = "攻擊距離",
+    Desc = "調整攻擊距離",
+    Value = {
+        Min = 0,
+        Max = 1000,
+        Default = 50
+    },
+    Callback = function(value)
+        Settings.Distance = value
+    end
+})
 
 Tabs.Farm:Section({ Title = "Farm Setting" })
 
