@@ -9,6 +9,11 @@ local HttpService = game:GetService("HttpService")
 local PlaceId = game.PlaceId
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
+local currentPlaceId = game.PlaceId
+
+local World1 = currentPlaceId == 2753915549 or currentPlaceId == 85211729168715
+local World2 = currentPlaceId == 4442272183 or currentPlaceId == 79091703265657
+local World3 = currentPlaceId == 7449423635 or currentPlaceId == 100117331123089
 
 local WindUI = loadstring(game:HttpGet(
     "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
@@ -1200,6 +1205,163 @@ local function removeLava()
     end
 end
 
+--// 狀態
+local FlyEnabled = false
+local NoclipEnabled = false
+local FlySpeed = 350
+local CurrentTargetPosition = nil
+
+--------------------------------------------------
+-- 關閉飛行
+--------------------------------------------------
+local function DisableFly()
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = false end
+
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+                part.Velocity = Vector3.zero
+            end
+        end
+    end
+
+    FlyEnabled = false
+    NoclipEnabled = false
+    CurrentTargetPosition = nil
+end
+
+--------------------------------------------------
+-- 啟用飛行
+--------------------------------------------------
+local function EnableFly()
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = true end
+    end
+end
+
+--------------------------------------------------
+-- Noclip Loop
+--------------------------------------------------
+RunService.Stepped:Connect(function()
+    if NoclipEnabled then
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+--------------------------------------------------
+-- 飛行移動
+--------------------------------------------------
+RunService.RenderStepped:Connect(function()
+    if FlyEnabled and CurrentTargetPosition then
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local direction = CurrentTargetPosition - hrp.Position
+            local distance = direction.Magnitude
+
+            if distance > 1 then
+                hrp.Velocity = direction.Unit * FlySpeed
+            else
+                hrp.Velocity = Vector3.zero
+                DisableFly()
+            end
+        end
+    end
+end)
+
+--------------------------------------------------
+-- SmartTeleport
+--------------------------------------------------
+local function SmartTeleport(intermediate, target)
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+
+    if intermediate then
+        hrp.CFrame = intermediate
+        task.wait(0.2)
+    end
+
+    CurrentTargetPosition = target
+    FlyEnabled = true
+    NoclipEnabled = true
+    EnableFly()
+end
+
+local TeleportData = {
+
+    World1 = {
+        ["海軍戰艦"] = { Intermediate = CFrame.new(-7906, 5546, -379), Target = Vector3.new(-3161, 209, 2067) },
+        ["新手村"]   = { Intermediate = CFrame.new(-7906, 5546, -379), Target = Vector3.new(1106, 16, 1431) },
+        ["叢林"]     = { Intermediate = CFrame.new(-7906, 5546, -379), Target = Vector3.new(-1422, 48, 21) },
+        ["海盜村"]   = { Intermediate = CFrame.new(-7906, 5546, -379), Target = Vector3.new(-1151, 131, 4166) },
+        ["中城"]     = { Intermediate = CFrame.new(-7906, 5546, -379), Target = Vector3.new(-786, 74, 1607) },
+        ["可樂"]     = { Intermediate = CFrame.new(-7906, 5546, -379), Target = Vector3.new(-1880, 25, -3320) },
+        ["水下"]     = { Intermediate = CFrame.new(4039, 2, -1820), Target = Vector3.new(4039, 2, -1820) },
+        ["噴泉"]     = { Intermediate = CFrame.new(-7906, 5546, -379), Target = Vector3.new(5668, 580, 4301) },
+        ["上空島"]   = { Intermediate = CFrame.new(-4624, 853, -1700), Target = Vector3.new(-7950, 5814, -1968) },
+        ["空島"]    = { Intermediate = CFrame.new(-7906, 5546, -379), Target = Vector3.new(-4913, 738, -2578) },
+        ["沙漠"]    = { Intermediate = CFrame.new(-7906, 5546, -379), Target = Vector3.new(1055, 52, 4490) },
+        ["火山"]    = { Intermediate = CFrame.new(-7906, 5546, -379), Target = Vector3.new(-5412, 11, 8454) },
+        ["監獄"]    = { Intermediate = CFrame.new(61169, 2, 1948), Target = Vector3.new(5327, 89, 717) },
+        ["海洋堡壘"]= { Intermediate = CFrame.new(-7906, 5546, -379), Target = Vector3.new(-5150, 375, 4445) },
+        ["雪地"]    = { Intermediate = CFrame.new(61169, 2, 1948), Target = Vector3.new(1486, 87, -1281) },
+        ["暴徒領地"]= { Intermediate = CFrame.new(-7906, 5546, -379), Target = Vector3.new(-2836, 7, 5325) },
+    },
+
+    World2 = {
+        ["碼頭(2)"] = { Intermediate = CFrame.new(2283, 19, 911), Target = Vector3.new(-11, 38, 2724) },
+        ["鬼船"]    = { Intermediate = CFrame.new(-6504, 83, -123), Target = Vector3.new(919, 126, 33133) },
+        ["墓地"]    = { Intermediate = CFrame.new(922, 125, 32843), Target = Vector3.new(-5620, 492, -778) },
+        ["咖啡廳"]  = { Intermediate = CFrame.new(2283, 19, 911), Target = Vector3.new(-380, 95, 252) },
+        ["黑暗競技場"] = { Intermediate = CFrame.new(-286, 306, 593), Target = Vector3.new(3776, 15, -3499) },
+        ["骷髏島"]  = { Intermediate = CFrame.new(922, 125, 32843), Target = Vector3.new(-2682, 708, -10966) },
+        ["狗屋"]    = { Intermediate = CFrame.new(2283, 19, 911), Target = Vector3.new(-2059, 126, -83) },
+        ["岩漿"]    = { Intermediate = CFrame.new(922, 125, 32843), Target = Vector3.new(-5176, 175, -5426) },
+        ["Raid"]    = { Intermediate = CFrame.new(922, 125, 32843), Target = Vector3.new(-6493, 305, -4728) },
+        ["雪地"]    = { Intermediate = CFrame.new(-286, 306, 593), Target = Vector3.new(775, 410, -5265) },
+        ["可樂"]    = { Intermediate = CFrame.new(2283, 19, 911), Target = Vector3.new(-1842, 46, 1362) },
+        ["實驗室"]  = { Intermediate = CFrame.new(922, 125, 32843), Target = Vector3.new(-5380, 219, -5936) },
+        ["豪宅"]    = { Intermediate = CFrame.new(2283, 19, 911), Target = Vector3.new(-391, 322, 854) },
+        ["碼頭(4)"] = { Intermediate = CFrame.new(922, 125, 32843), Target = Vector3.new(-6001, 29, -5024) },
+        ["遠程"]    = { Intermediate = CFrame.new(2283, 19, 911), Target = Vector3.new(4756, 8, 2845) },
+        ["碼頭(1)"] = { Intermediate = CFrame.new(2283, 19, 911), Target = Vector3.new(-917, 8, 1807) },
+        ["冬季城堡"] = { Intermediate = CFrame.new(2283, 19, 911), Target = Vector3.new(6007, 294, -6637) },
+        ["碼頭(3)"] = { Intermediate = CFrame.new(2283, 19, 911), Target = Vector3.new(-1920, 6, -2554) },
+        ["工廠"]    = { Intermediate = CFrame.new(2283, 19, 911), Target = Vector3.new(430, 211, -430) },
+        ["未知"]    = { Intermediate = CFrame.new(922, 125, 32843), Target = Vector3.new(-5157, 3, 2377) },
+    },
+
+    World3 = {
+        ["港口"]    = { Intermediate = CFrame.new(-5027, 317, -3207), Target = Vector3.new(-572, 232, 5770) },
+        ["烏龜屋"]  = { Intermediate = CFrame.new(-5060, 317, -3193), Target = Vector3.new(-12550, 337, -7506) },
+        ["海上城堡"]= { Intermediate = CFrame.new(-12464, 376, -7566), Target = Vector3.new(-4929, 317, -3041) },
+        ["大媽島"]  = { Intermediate = CFrame.new(-12464, 376, -7566), Target = Vector3.new(-726, 381, -10977) },
+        ["海德拉"]  = { Intermediate = CFrame.new(-5027, 317, -3207), Target = Vector3.new(5761, 1089, 467) },
+        ["司法島"]  = { Intermediate = CFrame.new(-5097, 317, -3177), Target = Vector3.new(-15988, 470, 938) },
+        ["烏龜中心"]= { Intermediate = CFrame.new(5369, 25, -506), Target = Vector3.new(-11993, 332, -9089) },
+        ["大樹"]    = { Intermediate = CFrame.new(-5027, 317, -3207), Target = Vector3.new(2551, 128, -6950) },
+        ["烏龜山"]  = { Intermediate = CFrame.new(5369, 25, -506), Target = Vector3.new(-12807, 897, -10793) },
+        ["鬧鬼城堡"]= { Intermediate = CFrame.new(-5097, 317, -3177), Target = Vector3.new(-9515, 164, 5787) },
+        ["花生島"]  = { Intermediate = CFrame.new(-12464, 376, -7566), Target = Vector3.new(-2040, 5, -9814) },
+        ["烏龜入口"]= { Intermediate = CFrame.new(-5060, 317, -3193), Target = Vector3.new(-10076, 332, -8321) },
+        ["海德拉競技場"]= { Intermediate = CFrame.new(-11993, 332, -8837), Target = Vector3.new(5014, 59, -1543) },
+        ["可可島"]  = { Intermediate = CFrame.new(-12464, 376, -7566), Target = Vector3.new(182, 127, -12769) },
+        ["蛋糕島"]  = { Intermediate = CFrame.new(-12464, 376, -7566), Target = Vector3.new(-2102, 70, -12134) },
+    }
+}
+
 local Tabs = {
     General  = Window:Tab({ Title = "通用",   Icon = "house" }),
     Server   = Window:Tab({ Title = "Server", Icon = "server" }),
@@ -1877,7 +2039,83 @@ Tabs.Settings:Slider({
     end
 })
 
-Tabs.Teleport:Section({ Title = "傳送" })
+Tabs.Teleport:Section({ Title = "停止飛行" })
+
+Tabs.Teleport:Button({
+    Title = "停用飛行",
+    Desc = "立即停止飛行",
+    Callback = function()
+        -- 執行停止飛行的邏輯
+        DisableFly()
+
+        -- 發送通知提醒使用者
+        WindUI:Notify({
+            Title = "系統通知",
+            Content = "已成功停用飛行模式並重置角色狀態",
+            Duration = 3
+        })
+    end
+})
+
+-- 第一世界
+Tabs.Teleport:Dropdown({
+    Title = "一海",
+    Multi = false,
+    Values = (function()
+        local list = {}
+        for name,_ in pairs(TeleportData.World1) do
+            table.insert(list, name)
+        end
+        return list
+    end)(),
+    Callback = function(option)
+        -- 靜默檢查：如果不是 World1，直接跳出不執行
+        if not World1 then return end
+        
+        local data = TeleportData.World1[option]
+        SmartTeleport(data.Intermediate, data.Target)
+    end
+})
+
+-- 第二世界
+Tabs.Teleport:Dropdown({
+    Title = "二海",
+    Multi = false,
+    Values = (function()
+        local list = {}
+        for name,_ in pairs(TeleportData.World2) do
+            table.insert(list, name)
+        end
+        return list
+    end)(),
+    Callback = function(option)
+        -- 靜默檢查：如果不是 World2，直接跳出不執行
+        if not World2 then return end
+        
+        local data = TeleportData.World2[option]
+        SmartTeleport(data.Intermediate, data.Target)
+    end
+})
+
+-- 第三世界
+Tabs.Teleport:Dropdown({
+    Title = "三海",
+    Multi = false,
+    Values = (function()
+        local list = {}
+        for name,_ in pairs(TeleportData.World3) do
+            table.insert(list, name)
+        end
+        return list
+    end)(),
+    Callback = function(option)
+        -- 靜默檢查：如果不是 World3，直接跳出不執行
+        if not World3 then return end
+        
+        local data = TeleportData.World3[option]
+        SmartTeleport(data.Intermediate, data.Target)
+    end
+})
 
 Tabs.Fun:Section({ Title = "娛樂" })
 
