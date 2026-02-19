@@ -1,7 +1,9 @@
+-- 建立 ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "CoordinatesGui"
 screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
+-- 建立可拖曳框架
 local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0.25, 0, 0.15, 0)
 frame.Position = UDim2.new(0.4, 0, 0.8, 0)
@@ -12,6 +14,7 @@ frame.Active = true
 frame.Draggable = true
 frame.Parent = screenGui
 
+-- 建立座標顯示 Label
 local label = Instance.new("TextLabel")
 label.Size = UDim2.new(1, 0, 0.6, 0)
 label.Position = UDim2.new(0, 0, 0, 0)
@@ -20,6 +23,7 @@ label.TextColor3 = Color3.fromRGB(255, 255, 255)
 label.TextScaled = true
 label.Parent = frame
 
+-- 建立 Copy 按鈕
 local copyButton = Instance.new("TextButton")
 copyButton.Size = UDim2.new(0.5, 0, 0.3, 0)
 copyButton.Position = UDim2.new(0.25, 0, 0.65, 0)
@@ -31,10 +35,10 @@ copyButton.Text = "Copy"
 copyButton.TextScaled = true
 copyButton.Parent = frame
 
--- 關閉按鈕（小正方形）
+-- 建立關閉按鈕
 local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 24, 0, 24) -- 固定像素，正方形
-closeButton.Position = UDim2.new(1, -26, 0, 2) -- 右上角內縮
+closeButton.Size = UDim2.new(0, 24, 0, 24)
+closeButton.Position = UDim2.new(1, -26, 0, 2)
 closeButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 closeButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.BorderSizePixel = 2
@@ -47,23 +51,24 @@ closeButton.MouseButton1Click:Connect(function()
     screenGui:Destroy()
 end)
 
+-- 更新座標
 local RunService = game:GetService("RunService")
-
 RunService.RenderStepped:Connect(function()
     local player = game.Players.LocalPlayer
     local character = player.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
         local position = character.HumanoidRootPart.Position
-        label.Text = string.format("X: %.0f, Y: %.0f, Z: %.0f", position.X, position.Y, position.Z)
+        label.Text = string.format("(%.0f, %.0f, %.0f)", position.X, position.Y, position.Z)
     end
 end)
 
+-- Copy 按鈕功能
 copyButton.MouseButton1Click:Connect(function()
     local player = game.Players.LocalPlayer
     local character = player.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
         local pos = character.HumanoidRootPart.Position
-        local textToCopy = string.format("X: %.0f, Y: %.0f, Z: %.0f", pos.X, pos.Y, pos.Z)
+        local textToCopy = string.format("(%.0f, %.0f, %.0f)", pos.X, pos.Y, pos.Z)
         if setclipboard then
             setclipboard(textToCopy)
         end
