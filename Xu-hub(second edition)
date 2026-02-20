@@ -10,15 +10,12 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
-local player = game.Players.LocalPlayer
-local mouse = player:GetMouse()
 
 local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlaceId = game.PlaceId
 local Camera = workspace.CurrentCamera
 local Terrain = workspace:FindFirstChildWhichIsA("Terrain")
-local explosionEnabled = false
 
 -- ================= 世界判斷 =================
 local currentPlaceId = game.PlaceId
@@ -1034,11 +1031,87 @@ local function resetCharacter(character)
     end
 end
 
-local function createExplosion(position)
-    local explosion = Instance.new("Explosion")
-    explosion.Position = position
-    explosion.BlastPressure = 100 -- 不傷害
-    explosion.Parent = workspace
+-- 初始化顏色校正 (如果尚未存在)
+local colorEffect = Lighting:FindFirstChild("FlashbangEffect") or Instance.new("ColorCorrectionEffect")
+colorEffect.Name = "FlashbangEffect"
+colorEffect.Parent = Lighting
+colorEffect.TintColor = Color3.new(1,1,1)
+colorEffect.Brightness = 0
+
+-- 爆炸閃光函數
+local function FlashBang(position, radius)
+    local flashUp = TweenService:Create(
+        colorEffect,
+        TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {Brightness = 8}
+    )
+    local fadeOut = TweenService:Create(
+        colorEffect,
+        TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {Brightness = 0}
+    )
+
+    flashUp:Play()
+    flashUp.Completed:Wait()
+    fadeOut:Play()
+
+    -- 影響附近玩家
+    for _, p in pairs(Players:GetPlayers()) do
+        local char = p.Character
+        if char and char:FindFirstChild("Head") then
+            local distance = (char.Head.Position - position).Magnitude
+            if distance <= radius then
+                local sound = Instance.new("Sound")
+                sound.SoundId = "rbxassetid://1234567890" -- 請確保更換為有效的 ID
+                sound.Volume = 1
+                sound.Parent = char.Head
+                sound:Play()
+                sound.Ended:Connect(function() sound:Destroy() end)
+            end
+        end
+    end
+end
+
+-- 投擲邏輯
+local function ThrowFlashbangRealistic(position, direction, speed, upwardForce)
+    local flashbang = Instance.new("Part")
+    flashbang.Size = Vector3.new(1,1,1)
+    flashbang.Shape = Enum.PartType.Ball
+    flashbang.Color = Color3.fromRGB(220,220,220)
+    flashbang.Material = Enum.Material.Metal
+    flashbang.Position = position
+    flashbang.Parent = Workspace
+
+    local particle = Instance.new("ParticleEmitter")
+    particle.Texture = "rbxassetid://243660364" 
+    particle.Rate = 20
+    particle.Parent = flashbang
+
+    local velocity = direction.Unit * speed + Vector3.new(0, upwardForce, 0)
+    local gravity = Vector3.new(0, -Workspace.Gravity, 0)
+    local exploded = false
+
+    local connection
+    connection = RunService.Heartbeat:Connect(function(deltaTime)
+        if exploded then return end
+        velocity = velocity + gravity * deltaTime
+        flashbang.Position = flashbang.Position + velocity * deltaTime
+    end)
+
+    flashbang.Touched:Connect(function(hit)
+        if exploded or (hit.Parent and Players:GetPlayerFromCharacter(hit.Parent)) then return end
+        
+        velocity = Vector3.new(velocity.X * 0.3, -velocity.Y * 0.5, velocity.Z * 0.3)
+        if velocity.Magnitude < 2 then
+            exploded = true
+            connection:Disconnect()
+            flashbang.Anchored = true
+            task.delay(1.5, function()
+                FlashBang(flashbang.Position, 25)
+                flashbang:Destroy()
+            end)
+        end
+    end)
 end
 
     local Tabs = {
@@ -1347,21 +1420,24 @@ Tabs.Fun:Button({
     end
 })
 
-Tabs.Fun:Toggle({
-    Title = "點擊爆炸",
-    Desc = "炸到自己會死 小心使用",
-    Value = false,
-    Callback = function(state)
-        explosionEnabled = state
+Tabs.Fun:Button({
+    Title = "投擲閃光彈",
+    Desc = "朝前方投擲一顆寫實的閃光彈",
+    Callback = function()
+        local player = Players.LocalPlayer
+        local character = player.Character
+        if character and character:FindFirstChild("Head") then
+            local head = character.Head
+            -- 參數：起始位置, 方向, 速度, 上拋力
+            ThrowFlashbangRealistic(
+                head.Position + (head.CFrame.LookVector * 2), 
+                head.CFrame.LookVector, 
+                60, 
+                25
+            )
+        end
     end
 })
-
--- 監聽滑鼠點擊
-mouse.Button1Down:Connect(function()
-    if explosionEnabled then
-        createExplosion(mouse.Hit.Position)
-    end
-end)
 
     Tabs.Other:Section({ Title = "其他" })
 end
