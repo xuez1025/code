@@ -59,7 +59,7 @@ end
 --  BUILD GUI
 -- ───────────────────────────────────────
 local main = Instance.new("ScreenGui")
-main.Name           = "FlyGuiV3"
+main.Name           = "FlyGuiV4"
 main.ResetOnSpawn   = false
 main.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 main.Parent         = LocalPlayer:WaitForChild("PlayerGui")
@@ -97,7 +97,7 @@ TitleText.Parent                = TitleBar
 TitleText.BackgroundTransparency = 1
 TitleText.Size                  = UDim2.new(1, -70, 1, 0)
 TitleText.Position              = UDim2.new(0, 12, 0, 0)
-TitleText.Text                  = "✈  FLY GUI V3"
+TitleText.Text                  = "FLY GUI V4"
 TitleText.TextColor3            = C.accent
 TitleText.TextSize              = 13
 TitleText.Font                  = Enum.Font.GothamBold
@@ -417,7 +417,7 @@ end)
 --  NOTIFICATION
 -- ───────────────────────────────────────
 StarterGui:SetCore("SendNotification", {
-	Title    = "FLY GUI V3";
+	Title    = "FLY GUI V4";
 	Text     = "Noclip 已增加";
 	Duration = 4;
 })
