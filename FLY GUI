@@ -1,0 +1,418 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- ───────────────────────────────────────
+--  COLOUR PALETTE  (change here only)
+-- ───────────────────────────────────────
+local C = {
+	bg         = Color3.fromRGB(18,  18,  24),   -- window body
+	header     = Color3.fromRGB(28,  28,  38),   -- title bar
+	accent     = Color3.fromRGB(100, 180, 255),  -- blue accent
+	btnFly     = Color3.fromRGB(100, 220, 130),  -- fly toggle (off)
+	btnFlyOn   = Color3.fromRGB(255, 100, 100),  -- fly toggle (on)
+	btnPlus    = Color3.fromRGB(100, 220, 130),
+	btnMinus   = Color3.fromRGB(255, 100, 100),
+	btnClose   = Color3.fromRGB(220,  60,  60),
+	btnMin     = Color3.fromRGB(60,  60,  80),
+	text       = Color3.fromRGB(230, 230, 240),
+	subtext    = Color3.fromRGB(140, 140, 160),
+	speedBg    = Color3.fromRGB(38,  38,  52),
+}
+
+-- ───────────────────────────────────────
+--  UTILITY  – rounded corner helper
+-- ───────────────────────────────────────
+local function corner(parent, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius or 6)
+	c.Parent = parent
+end
+
+local function stroke(parent, color, thickness)
+	local s = Instance.new("UIStroke")
+	s.Color = color or Color3.fromRGB(60, 60, 80)
+	s.Thickness = thickness or 1
+	s.Parent = parent
+end
+
+local function label(parent, text, size, color, bold)
+	local l = Instance.new("TextLabel")
+	l.Parent        = parent
+	l.BackgroundTransparency = 1
+	l.Size          = UDim2.fromScale(1, 1)
+	l.Text          = text
+	l.TextColor3    = color or C.text
+	l.TextSize      = size or 13
+	l.Font          = bold and Enum.Font.GothamBold or Enum.Font.Gotham
+	l.TextXAlignment = Enum.TextXAlignment.Center
+	return l
+end
+
+local function btn(parent, text, size, pos, bgColor, textSize)
+	local b = Instance.new("TextButton")
+	b.Parent          = parent
+	b.Size            = size
+	b.Position        = pos
+	b.BackgroundColor3 = bgColor or C.accent
+	b.TextColor3      = C.text
+	b.Text            = text
+	b.TextSize        = textSize or 13
+	b.Font            = Enum.Font.GothamBold
+	b.AutoButtonColor = false
+	corner(b, 6)
+	-- hover effect
+	b.MouseEnter:Connect(function()
+		b.BackgroundTransparency = 0.25
+	end)
+	b.MouseLeave:Connect(function()
+		b.BackgroundTransparency = 0
+	end)
+	return b
+end
+
+-- ───────────────────────────────────────
+--  BUILD  GUI
+-- ───────────────────────────────────────
+local main = Instance.new("ScreenGui")
+main.Name           = "FlyGuiV3"
+main.ResetOnSpawn   = false
+main.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+main.Parent         = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Window frame
+local Frame = Instance.new("Frame")
+Frame.Name              = "Window"
+Frame.Parent            = main
+Frame.BackgroundColor3  = C.bg
+Frame.Size              = UDim2.new(0, 220, 0, 112)
+Frame.Position          = UDim2.new(0.04, 0, 0.38, 0)
+Frame.Active            = true
+Frame.Draggable         = true
+corner(Frame, 10)
+stroke(Frame, Color3.fromRGB(50, 50, 70), 1.5)
+
+-- ── Title bar ──────────────────────────
+local TitleBar = Instance.new("Frame")
+TitleBar.Name             = "TitleBar"
+TitleBar.Parent           = Frame
+TitleBar.BackgroundColor3 = C.header
+TitleBar.Size             = UDim2.new(1, 0, 0, 32)
+TitleBar.Position         = UDim2.new(0, 0, 0, 0)
+corner(TitleBar, 10)
+-- mask bottom corners of title bar
+local TitleMask = Instance.new("Frame")
+TitleMask.Parent          = TitleBar
+TitleMask.BackgroundColor3 = C.header
+TitleMask.BorderSizePixel = 0
+TitleMask.Size            = UDim2.new(1, 0, 0.5, 0)
+TitleMask.Position        = UDim2.new(0, 0, 0.5, 0)
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Parent          = TitleBar
+TitleText.BackgroundTransparency = 1
+TitleText.Size            = UDim2.new(1, -70, 1, 0)
+TitleText.Position        = UDim2.new(0, 12, 0, 0)
+TitleText.Text            = "✈  FLY GUI V3"
+TitleText.TextColor3      = C.accent
+TitleText.TextSize        = 13
+TitleText.Font            = Enum.Font.GothamBold
+TitleText.TextXAlignment  = Enum.TextXAlignment.Left
+
+-- Close button
+local closeBtn = btn(TitleBar, "X", UDim2.new(0, 28, 0, 22),
+	UDim2.new(1, -62, 0, 5), C.btnClose, 12)
+
+-- Minimize button
+local miniBtn = btn(TitleBar, "—", UDim2.new(0, 28, 0, 22),
+	UDim2.new(1, -32, 0, 5), C.btnMin, 12)
+
+-- ── Body ────────────────────────────────
+local Body = Instance.new("Frame")
+Body.Name             = "Body"
+Body.Parent           = Frame
+Body.BackgroundTransparency = 1
+Body.Size             = UDim2.new(1, -16, 0, 68)
+Body.Position         = UDim2.new(0, 8, 0, 38)
+
+-- Row 1:  −  |  [SPEED DISPLAY]  |  +
+local rowH = 30
+local gap  = 6
+
+-- Speed box (centre)
+local speedBox = Instance.new("Frame")
+speedBox.Parent           = Body
+speedBox.BackgroundColor3 = C.speedBg
+speedBox.Size             = UDim2.new(1, -132, 0, rowH)
+speedBox.Position         = UDim2.new(0, 66, 0, 0)
+corner(speedBox, 6)
+stroke(speedBox, Color3.fromRGB(55, 55, 75))
+
+local speedLbl = Instance.new("TextLabel")
+speedLbl.Name             = "SpeedLabel"
+speedLbl.Parent           = speedBox
+speedLbl.BackgroundTransparency = 1
+speedLbl.Size             = UDim2.fromScale(1, 0.48)
+speedLbl.Position         = UDim2.fromScale(0, 0.05)
+speedLbl.Text             = "SPEED"
+speedLbl.TextColor3       = C.subtext
+speedLbl.TextSize         = 9
+speedLbl.Font             = Enum.Font.Gotham
+
+local speedVal = Instance.new("TextLabel")
+speedVal.Name             = "SpeedValue"
+speedVal.Parent           = speedBox
+speedVal.BackgroundTransparency = 1
+speedVal.Size             = UDim2.fromScale(1, 0.55)
+speedVal.Position         = UDim2.fromScale(0, 0.45)
+speedVal.Text             = "1"
+speedVal.TextColor3       = C.accent
+speedVal.TextSize         = 16
+speedVal.Font             = Enum.Font.GothamBold
+
+-- Row 1 flanks: − and +
+local minusBtn = btn(Body, "−", UDim2.new(0, 60, 0, rowH), UDim2.new(0, 0,   0, 0), C.btnMinus, 20)
+local plusBtn  = btn(Body, "+", UDim2.new(0, 60, 0, rowH), UDim2.new(0, 144, 0, 0), C.btnPlus,  20)
+
+-- Row 2:  FLY TOGGLE  (full width)
+local row2Y = rowH + gap
+
+local flyBtn = btn(Body, "FLY  OFF", UDim2.new(1, 0, 0, rowH), UDim2.new(0, 0, 0, row2Y), C.btnFly, 13)
+
+-- Minimised pill (hidden by default)
+local MiniPill = Instance.new("Frame")
+MiniPill.Name             = "MiniPill"
+MiniPill.Parent           = main
+MiniPill.BackgroundColor3 = C.header
+MiniPill.Size             = UDim2.new(0, 110, 0, 32)
+MiniPill.Position         = Frame.Position
+MiniPill.Visible          = false
+MiniPill.Active           = true
+MiniPill.Draggable        = true
+corner(MiniPill, 16)
+stroke(MiniPill, Color3.fromRGB(55, 55, 75))
+
+local pillLabel = Instance.new("TextLabel")
+pillLabel.Parent          = MiniPill
+pillLabel.BackgroundTransparency = 1
+pillLabel.Size            = UDim2.new(1, -38, 1, 0)
+pillLabel.Position        = UDim2.new(0, 10, 0, 0)
+pillLabel.Text            = "✈ FLY GUI"
+pillLabel.TextColor3      = C.accent
+pillLabel.TextSize        = 12
+pillLabel.Font            = Enum.Font.GothamBold
+pillLabel.TextXAlignment  = Enum.TextXAlignment.Left
+
+local expandBtn = btn(MiniPill, "□", UDim2.new(0, 28, 0, 22),
+	UDim2.new(1, -32, 0, 5), C.btnMin, 12)
+
+-- ───────────────────────────────────────
+--  STATE
+-- ───────────────────────────────────────
+local speeds    = 1
+local isFlying  = false
+local tpwalking = false
+
+-- ───────────────────────────────────────
+--  WINDOW CONTROLS
+-- ───────────────────────────────────────
+closeBtn.MouseButton1Click:Connect(function()
+	main:Destroy()
+end)
+
+miniBtn.MouseButton1Click:Connect(function()
+	MiniPill.Position = Frame.Position
+	Frame.Visible  = false
+	MiniPill.Visible = true
+end)
+
+expandBtn.MouseButton1Click:Connect(function()
+	Frame.Position  = MiniPill.Position
+	MiniPill.Visible = false
+	Frame.Visible  = true
+end)
+
+-- ───────────────────────────────────────
+--  SPEED CONTROLS
+-- ───────────────────────────────────────
+local function spawnWalkers()
+	tpwalking = false
+	task.wait()
+	tpwalking = true
+	for _ = 1, speeds do
+		task.spawn(function()
+			local hb  = RunService.Heartbeat
+			local chr = LocalPlayer.Character
+			local hum = chr and chr:FindFirstChildWhichIsA("Humanoid")
+			while tpwalking and hb:Wait() and chr and hum and hum.Parent do
+				if hum.MoveDirection.Magnitude > 0 then
+					chr:TranslateBy(hum.MoveDirection)
+				end
+			end
+		end)
+	end
+end
+
+plusBtn.MouseButton1Click:Connect(function()
+	speeds = speeds + 1
+	speedVal.Text = tostring(speeds)
+	if isFlying then spawnWalkers() end
+end)
+
+minusBtn.MouseButton1Click:Connect(function()
+	if speeds <= 1 then
+		speedVal.Text = "min!"
+		task.delay(0.8, function() speedVal.Text = tostring(speeds) end)
+		return
+	end
+	speeds = speeds - 1
+	speedVal.Text = tostring(speeds)
+	if isFlying then spawnWalkers() end
+end)
+
+-- ───────────────────────────────────────
+--  HUMANOID STATE HELPER
+-- ───────────────────────────────────────
+local allStates = {
+	Enum.HumanoidStateType.Climbing,
+	Enum.HumanoidStateType.FallingDown,
+	Enum.HumanoidStateType.Flying,
+	Enum.HumanoidStateType.Freefall,
+	Enum.HumanoidStateType.GettingUp,
+	Enum.HumanoidStateType.Jumping,
+	Enum.HumanoidStateType.Landed,
+	Enum.HumanoidStateType.Physics,
+	Enum.HumanoidStateType.PlatformStanding,
+	Enum.HumanoidStateType.Ragdoll,
+	Enum.HumanoidStateType.Running,
+	Enum.HumanoidStateType.RunningNoPhysics,
+	Enum.HumanoidStateType.Seated,
+	Enum.HumanoidStateType.StrafingNoPhysics,
+	Enum.HumanoidStateType.Swimming,
+}
+
+local function setAllStates(hum, enabled)
+	for _, s in ipairs(allStates) do
+		hum:SetStateEnabled(s, enabled)
+	end
+end
+
+-- ───────────────────────────────────────
+--  FLY TOGGLE
+-- ───────────────────────────────────────
+flyBtn.MouseButton1Click:Connect(function()
+	isFlying = not isFlying
+
+	-- Update button visual
+	if isFlying then
+		flyBtn.BackgroundColor3 = C.btnFlyOn
+		flyBtn.Text = "FLY  ON"
+	else
+		flyBtn.BackgroundColor3 = C.btnFly
+		flyBtn.Text = "FLY  OFF"
+	end
+
+	local speaker = LocalPlayer
+	local hum = speaker.Character and speaker.Character:FindFirstChildWhichIsA("Humanoid")
+	if not hum then return end
+
+	if not isFlying then
+		-- ── Land ──
+		setAllStates(hum, true)
+		hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+		tpwalking = false
+		LocalPlayer.Character.Animate.Disabled = false
+		return
+	end
+
+	-- ── Take off ──
+	spawnWalkers()
+	LocalPlayer.Character.Animate.Disabled = true
+	for _, v in ipairs(hum:GetPlayingAnimationTracks()) do
+		v:AdjustSpeed(0)
+	end
+	setAllStates(hum, false)
+	hum:ChangeState(Enum.HumanoidStateType.Swimming)
+
+	-- ── Flight loop ──
+	local isR6 = hum.RigType == Enum.HumanoidRigType.R6
+	local torso = isR6 and speaker.Character:FindFirstChild("Torso")
+	                    or speaker.Character:FindFirstChild("UpperTorso")
+	if not torso then return end
+
+	local bg = Instance.new("BodyGyro",     torso)
+	bg.P          = 9e4
+	bg.maxTorque  = Vector3.new(9e9, 9e9, 9e9)
+	bg.cframe     = torso.CFrame
+
+	local bv = Instance.new("BodyVelocity", torso)
+	bv.velocity   = Vector3.new(0, 0.1, 0)
+	bv.maxForce   = Vector3.new(9e9, 9e9, 9e9)
+
+	hum.PlatformStand = true
+
+	local ctrl     = {f=0, b=0, l=0, r=0}
+	local lastctrl = {f=0, b=0, l=0, r=0}
+	local spd      = 0
+	local maxspd   = 50
+
+	local step = isR6 and RunService.RenderStepped or RunService.Heartbeat
+
+	while isFlying and hum and hum.Parent do
+		step:Wait()
+		local lr = ctrl.l + ctrl.r
+		local fb = ctrl.f + ctrl.b
+		if lr ~= 0 or fb ~= 0 then
+			spd = math.min(spd + 0.5 + spd/maxspd, maxspd)
+		elseif spd ~= 0 then
+			spd = math.max(spd - 1, 0)
+		end
+
+		local cam = workspace.CurrentCamera.CoordinateFrame
+		if lr ~= 0 or fb ~= 0 then
+			bv.velocity = (cam.lookVector * fb + (cam * CFrame.new(lr, fb*.2, 0)).p - cam.p) * spd
+			lastctrl = {f=ctrl.f, b=ctrl.b, l=ctrl.l, r=ctrl.r}
+		elseif spd ~= 0 then
+			bv.velocity = (cam.lookVector * (lastctrl.f+lastctrl.b) +
+				(cam * CFrame.new(lastctrl.l+lastctrl.r, (lastctrl.f+lastctrl.b)*.2, 0)).p - cam.p) * spd
+		else
+			bv.velocity = Vector3.zero
+		end
+		bg.cframe = cam * CFrame.Angles(-math.rad(fb * 50 * spd/maxspd), 0, 0)
+	end
+
+	bg:Destroy()
+	bv:Destroy()
+	hum.PlatformStand = false
+	LocalPlayer.Character.Animate.Disabled = false
+	tpwalking = false
+end)
+
+-- ───────────────────────────────────────
+--  RESPAWN cleanup
+-- ───────────────────────────────────────
+LocalPlayer.CharacterAdded:Connect(function()
+	task.wait(0.7)
+	isFlying  = false
+	tpwalking = false
+	flyBtn.BackgroundColor3 = C.btnFly
+	flyBtn.Text = "FLY  OFF"
+	local chr = LocalPlayer.Character
+	if chr then
+		local h = chr:FindFirstChildWhichIsA("Humanoid")
+		if h then h.PlatformStand = false end
+		local anim = chr:FindFirstChild("Animate")
+		if anim then anim.Disabled = false end
+	end
+end)
+
+-- ───────────────────────────────────────
+--  NOTIFICATION
+-- ───────────────────────────────────────
+StarterGui:SetCore("SendNotification", {
+	Title    = "FLY GUI V3";
+	Text     = "Loaded  ·  by XNEO";
+	Duration = 4;
+})
