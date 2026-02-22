@@ -1,131 +1,76 @@
--- 防止重複開啟
-if game.CoreGui:FindFirstChild("UniversalCoordinatesGui") then
-    game.CoreGui.UniversalCoordinatesGui:Destroy()
-end
-
--- Services
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
-local LocalPlayer = Players.LocalPlayer
-if not LocalPlayer then return end
-
--- 建立 ScreenGui（放 CoreGui 才能全遊戲使用）
+-- 建立 ScreenGui
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "UniversalCoordinatesGui"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = game.CoreGui
+screenGui.Name = "CoordinatesGui"
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- 主框架
+-- 建立可拖曳框架
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 250, 0, 120)
+frame.Size = UDim2.new(0.25, 0, 0.15, 0)
 frame.Position = UDim2.new(0.4, 0, 0.8, 0)
-frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-frame.BorderSizePixel = 0
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+frame.BorderSizePixel = 2
 frame.Active = true
+frame.Draggable = true
 frame.Parent = screenGui
 
--- 圓角
-local corner = Instance.new("UICorner", frame)
-corner.CornerRadius = UDim.new(0, 10)
-
--- 座標文字
+-- 建立座標顯示 Label
 local label = Instance.new("TextLabel")
-label.Size = UDim2.new(1, -10, 0.6, 0)
-label.Position = UDim2.new(0, 5, 0, 5)
+label.Size = UDim2.new(1, 0, 0.6, 0)
+label.Position = UDim2.new(0, 0, 0, 0)
 label.BackgroundTransparency = 1
-label.TextColor3 = Color3.new(1,1,1)
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
 label.TextScaled = true
-label.Font = Enum.Font.SourceSansBold
-label.Text = "Loading..."
 label.Parent = frame
 
--- Copy 按鈕
+-- 建立 Copy 按鈕
 local copyButton = Instance.new("TextButton")
-copyButton.Size = UDim2.new(0.6, 0, 0.3, 0)
-copyButton.Position = UDim2.new(0.2, 0, 0.65, 0)
-copyButton.BackgroundColor3 = Color3.fromRGB(40,40,40)
-copyButton.TextColor3 = Color3.new(1,1,1)
-copyButton.TextScaled = true
-copyButton.Font = Enum.Font.SourceSansBold
+copyButton.Size = UDim2.new(0.5, 0, 0.3, 0)
+copyButton.Position = UDim2.new(0.25, 0, 0.65, 0)
+copyButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+copyButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+copyButton.BorderSizePixel = 2
+copyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 copyButton.Text = "Copy"
+copyButton.TextScaled = true
 copyButton.Parent = frame
 
-Instance.new("UICorner", copyButton)
-
--- 關閉按鈕
+-- 建立關閉按鈕
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 24, 0, 24)
-closeButton.Position = UDim2.new(1, -28, 0, 4)
-closeButton.BackgroundColor3 = Color3.fromRGB(150,0,0)
-closeButton.TextColor3 = Color3.new(1,1,1)
+closeButton.Position = UDim2.new(1, -26, 0, 2)
+closeButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+closeButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.BorderSizePixel = 2
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.Text = "X"
 closeButton.TextScaled = true
 closeButton.Parent = frame
-
-Instance.new("UICorner", closeButton)
 
 closeButton.MouseButton1Click:Connect(function()
     screenGui:Destroy()
 end)
 
--- 拖曳功能（新版安全拖曳）
-local dragging = false
-local dragInput, dragStart, startPos
-
-frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
--- 更新座標（支援重生）
-local function getHRP()
-    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    return character:WaitForChild("HumanoidRootPart", 5)
-end
-
+-- 更新座標
+local RunService = game:GetService("RunService")
 RunService.RenderStepped:Connect(function()
-    local hrp = getHRP()
-    if hrp then
-        local pos = hrp.Position
-        label.Text = string.format("(%.0f, %.0f, %.0f)", pos.X, pos.Y, pos.Z)
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local position = character.HumanoidRootPart.Position
+        label.Text = string.format("(%.0f, %.0f, %.0f)", position.X, position.Y, position.Z)
     end
 end)
 
--- Copy 功能
+-- Copy 按鈕功能
 copyButton.MouseButton1Click:Connect(function()
-    local hrp = getHRP()
-    if hrp then
-        local pos = hrp.Position
-        local text = string.format("(%.0f, %.0f, %.0f)", pos.X, pos.Y, pos.Z)
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local pos = character.HumanoidRootPart.Position
+        local textToCopy = string.format("(%.0f, %.0f, %.0f)", pos.X, pos.Y, pos.Z)
         if setclipboard then
-            setclipboard(text)
+            setclipboard(textToCopy)
         end
     end
 end)
