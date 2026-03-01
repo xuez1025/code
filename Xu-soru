@@ -11,7 +11,7 @@ local guiEnabled = true
 local playerButtons = {}
 local isMinimized = false
 
--- ── 新功能相關變數 ───────────────────────────────────────
+-- ── 核心變數 ───────────────────────────────────────
 local _G = _G or {}
 _G.YFlash_Enabled = false
 _G.WaitTime     = 0.45
@@ -38,21 +38,21 @@ local excludeKeywords = {
     "die", "death", "hurt", "pain", "damage"
 }
 
--- ── GUI ───────────────────────────────────────────────────
+-- ── GUI 建立 ───────────────────────────────────────────────────
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Teleport_And_YFlash_GUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 520)           -- 高度加大
+MainFrame.Size = UDim2.new(0, 300, 0, 520)
 MainFrame.Position = UDim2.new(0, 30, 0, 180)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 MainFrame.Active = true
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame)
 
--- 拖曳
+-- 拖曳功能
 do
     local dragging, dragStart, startPos
     MainFrame.InputBegan:Connect(function(inp)
@@ -82,7 +82,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1,-120,0,40)
 Title.Position = UDim2.new(0,10,0,10)
 Title.BackgroundTransparency = 1
-Title.Text = "Xu-順步 + Y閃"
+Title.Text = "Xu-秒殺"
 Title.TextColor3 = Color3.new(1,1,1)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
@@ -110,9 +110,8 @@ MinimizeButton.BackgroundColor3 = Color3.fromRGB(100,100,100)
 MinimizeButton.Parent = MainFrame
 Instance.new("UICorner", MinimizeButton)
 
--- 玩家列表區域
 local ScrollingFrame = Instance.new("ScrollingFrame")
-ScrollingFrame.Size = UDim2.new(1,-20,0,240)          -- 原 1,-130 改小一點留空間
+ScrollingFrame.Size = UDim2.new(1,-20,0,240)
 ScrollingFrame.Position = UDim2.new(0,10,0,60)
 ScrollingFrame.ScrollBarImageTransparency = 0.3
 ScrollingFrame.Parent = MainFrame
@@ -121,11 +120,10 @@ local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Padding = UDim.new(0,6)
 UIListLayout.Parent = ScrollingFrame
 
--- 瞬移按鈕
 local TeleportButton = Instance.new("TextButton")
 TeleportButton.Size = UDim2.new(1,-20,0,40)
-TeleportButton.Position = UDim2.new(0,10,0,310)       -- 往下移
-TeleportButton.Text = "TP (G)"
+TeleportButton.Position = UDim2.new(0,10,0,310)
+TeleportButton.Text = "TP player(G)"
 TeleportButton.Font = Enum.Font.SourceSansBold
 TeleportButton.TextSize = 18
 TeleportButton.TextColor3 = Color3.new(1,1,1)
@@ -133,12 +131,11 @@ TeleportButton.BackgroundColor3 = Color3.fromRGB(70,140,220)
 TeleportButton.Parent = MainFrame
 Instance.new("UICorner", TeleportButton)
 
--- ── 新增 Y閃避 區域 ──────────────────────────────────────
 local SectionLabel = Instance.new("TextLabel")
 SectionLabel.Size = UDim2.new(1,-20,0,30)
 SectionLabel.Position = UDim2.new(0,10,0,360)
 SectionLabel.BackgroundTransparency = 1
-SectionLabel.Text = "Y軸閃避（技能音效觸發）"
+SectionLabel.Text = "秒殺(Alt)"
 SectionLabel.TextColor3 = Color3.fromRGB(180,180,180)
 SectionLabel.Font = Enum.Font.SourceSansSemibold
 SectionLabel.TextSize = 16
@@ -147,7 +144,7 @@ SectionLabel.Parent = MainFrame
 local YFlashToggle = Instance.new("TextButton")
 YFlashToggle.Size = UDim2.new(1,-20,0,40)
 YFlashToggle.Position = UDim2.new(0,10,0,395)
-YFlashToggle.Text = "Y閃避 : 關閉"
+YFlashToggle.Text = "關閉"
 YFlashToggle.Font = Enum.Font.SourceSansBold
 YFlashToggle.TextSize = 18
 YFlashToggle.TextColor3 = Color3.new(1,1,1)
@@ -155,11 +152,23 @@ YFlashToggle.BackgroundColor3 = Color3.fromRGB(200,50,50)
 YFlashToggle.Parent = MainFrame
 Instance.new("UICorner", YFlashToggle)
 
--- ── 玩家列表刷新 ─────────────────────────────────────────
+-- ── 邏輯處理 ─────────────────────────────────────────
+
+local function updateYFlashUI()
+    YFlashToggle.Text = _G.YFlash_Enabled and "開啟" or "關閉"
+    YFlashToggle.BackgroundColor3 = _G.YFlash_Enabled 
+        and Color3.fromRGB(50,200,50) 
+        or Color3.fromRGB(200,50,50)
+end
+
+local function toggleYFlash()
+    _G.YFlash_Enabled = not _G.YFlash_Enabled
+    updateYFlashUI()
+end
+
 local function refreshPlayers()
     for _, b in pairs(playerButtons) do b:Destroy() end
     playerButtons = {}
-    
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= player then
             local btn = Instance.new("TextButton")
@@ -168,29 +177,20 @@ local function refreshPlayers()
             btn.Font = Enum.Font.SourceSans
             btn.TextSize = 16
             btn.TextColor3 = Color3.new(1,1,1)
-            btn.BackgroundColor3 = (plr == selectedPlayer)
-                and Color3.fromRGB(80,180,80)
-                or Color3.fromRGB(120,120,120)
+            btn.BackgroundColor3 = (plr == selectedPlayer) and Color3.fromRGB(80,180,80) or Color3.fromRGB(120,120,120)
             btn.Parent = ScrollingFrame
             Instance.new("UICorner", btn)
-            
             btn.MouseButton1Click:Connect(function()
                 selectedPlayer = plr
-                for _, other in pairs(playerButtons) do
-                    other.BackgroundColor3 = Color3.fromRGB(120,120,120)
-                end
+                for _, other in pairs(playerButtons) do other.BackgroundColor3 = Color3.fromRGB(120,120,120) end
                 btn.BackgroundColor3 = Color3.fromRGB(80,180,80)
             end)
-            
             playerButtons[plr] = btn
         end
     end
-    
-    task.wait()
     ScrollingFrame.CanvasSize = UDim2.new(0,0,0,UIListLayout.AbsoluteContentSize.Y + 10)
 end
 
--- ── 瞬移函數（原功能） ───────────────────────────────────
 local function teleportToPlayer()
     if not guiEnabled or not selectedPlayer then return end
     local myChar = player.Character
@@ -202,47 +202,30 @@ local function teleportToPlayer()
     if not (myHRP and targetHRP) then return end
     
     local distance = 8
-    local flatDir = Vector3.new(
-        Camera.CFrame.LookVector.X, 0, Camera.CFrame.LookVector.Z
-    )
+    local flatDir = Vector3.new(Camera.CFrame.LookVector.X, 0, Camera.CFrame.LookVector.Z)
     if flatDir.Magnitude < 0.01 then return end
     flatDir = flatDir.Unit
     
-    local playerHRP_Y = targetHRP.Position.Y
-    local finalPos = Vector3.new(
-        targetHRP.Position.X,
-        playerHRP_Y,
-        targetHRP.Position.Z
-    ) - flatDir * distance
-    
+    local finalPos = Vector3.new(targetHRP.Position.X, targetHRP.Position.Y, targetHRP.Position.Z) - flatDir * distance
     myHRP.CFrame = CFrame.new(finalPos, finalPos + flatDir)
 end
 
--- ── Y軸閃避核心 ──────────────────────────────────────────
+-- ── Y軸閃避監控 ──────────────────────────────────────────
 local RootConnection
 local function setupYFlashListener()
     if RootConnection then RootConnection:Disconnect() end
-    
     local Character = player.Character
     if not Character then return end
-    
     local Root = Character:WaitForChild("HumanoidRootPart", 5)
     if not Root then return end
     
     RootConnection = Root.ChildAdded:Connect(function(child)
-        if not _G.YFlash_Enabled then return end
-        if not child:IsA("Sound") then return end
+        if not _G.YFlash_Enabled or not child:IsA("Sound") then return end
         
         local name = child.Name:lower()
-        
-        -- 排除
-        for _, kw in ipairs(excludeKeywords) do
-            if name:find(kw) then return end
-        end
-        
+        for _, kw in ipairs(excludeKeywords) do if name:find(kw) then return end end
         if child.TimeLength < 0.7 or child.Volume < 0.6 then return end
         
-        -- 匹配技能關鍵字
         for _, kw in ipairs(skillKeywords) do
             if name:find(kw) then
                 task.spawn(function()
@@ -250,27 +233,19 @@ local function setupYFlashListener()
                     if not _G.YFlash_Enabled or not Root or not Root.Parent then return end
                     
                     local originalCFrame = Root.CFrame
-                    local downPos = Vector3.new(
-                        originalCFrame.Position.X,
-                        _G.VoidY,
-                        originalCFrame.Position.Z
-                    )
-                    
+                    local downPos = Vector3.new(originalCFrame.Position.X, _G.VoidY, originalCFrame.Position.Z)
                     local conn
                     conn = RunService.Heartbeat:Connect(function()
                         if not _G.YFlash_Enabled or not Root or not Root.Parent then
-                            conn:Disconnect()
+                            if conn then conn:Disconnect() end
                             return
                         end
                         Root.CFrame = CFrame.new(downPos) * originalCFrame.Rotation
                     end)
                     
                     task.wait(_G.FlashDuration)
-                    if conn.Connected then conn:Disconnect() end
-                    
-                    if Root and Root.Parent then
-                        Root.CFrame = originalCFrame
-                    end
+                    if conn then conn:Disconnect() end
+                    if Root and Root.Parent then Root.CFrame = originalCFrame end
                 end)
                 break
             end
@@ -280,58 +255,40 @@ end
 
 -- ── 事件綁定 ─────────────────────────────────────────────
 TeleportButton.MouseButton1Click:Connect(teleportToPlayer)
+YFlashToggle.MouseButton1Click:Connect(toggleYFlash)
 
 UserInputService.InputBegan:Connect(function(input, gp)
-    if gp or not guiEnabled then return end
+    if gp then return end -- 如果在聊天則不觸發
     if input.KeyCode == Enum.KeyCode.G then
         teleportToPlayer()
+    elseif input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt then
+        toggleYFlash()
     end
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
     guiEnabled = false
     ScreenGui.Enabled = false
-    -- 如果想完全銷毀可改成 ScreenGui:Destroy()
 end)
 
 MinimizeButton.MouseButton1Click:Connect(function()
-    if isMinimized then
-        ScrollingFrame.Visible = true
-        TeleportButton.Visible = true
-        SectionLabel.Visible   = true
-        YFlashToggle.Visible   = true
-        MainFrame.Size = UDim2.new(0,300,0,520)
-        isMinimized = false
-    else
-        ScrollingFrame.Visible = false
-        TeleportButton.Visible = false
-        SectionLabel.Visible   = false
-        YFlashToggle.Visible   = false
-        MainFrame.Size = UDim2.new(0,200,0,50)
-        isMinimized = true
-    end
-end)
-
--- Y閃避開關
-YFlashToggle.MouseButton1Click:Connect(function()
-    _G.YFlash_Enabled = not _G.YFlash_Enabled
-    YFlashToggle.Text = _G.YFlash_Enabled and "Y閃避 : 開啟" or "Y閃避 : 關閉"
-    YFlashToggle.BackgroundColor3 = _G.YFlash_Enabled
-        and Color3.fromRGB(50,200,50)
-        or  Color3.fromRGB(200,50,50)
+    isMinimized = not isMinimized
+    local visible = not isMinimized
+    ScrollingFrame.Visible = visible
+    TeleportButton.Visible = visible
+    SectionLabel.Visible   = visible
+    YFlashToggle.Visible   = visible
+    MainFrame.Size = isMinimized and UDim2.new(0,200,0,50) or UDim2.new(0,300,0,520)
 end)
 
 Players.PlayerAdded:Connect(refreshPlayers)
 Players.PlayerRemoving:Connect(refreshPlayers)
-
--- 角色重生時重新綁定音效監聽
 player.CharacterAdded:Connect(function()
     task.wait(0.6)
     setupYFlashListener()
 end)
 
--- 初次載入
+-- 初始化
 refreshPlayers()
 setupYFlashListener()
-
-print("瞬移(G) + Y軸技能閃避 已載入")
+print("腳本已加載：[G] 瞬移 | [Alt] 切換 Y軸閃避")
