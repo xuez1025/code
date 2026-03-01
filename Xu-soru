@@ -10,12 +10,13 @@ local selectedPlayer = nil
 local guiEnabled = true
 local playerButtons = {}
 local isMinimized = false
+local lastToggleTick = 0 -- 用於防止重複觸發的計時器
 
 -- ── 核心變數 ───────────────────────────────────────
 local _G = _G or {}
 _G.YFlash_Enabled = false
-_G.WaitTime     = 0.45
-_G.VoidY        = -200000
+_G.WaitTime      = 0.45
+_G.VoidY         = -200000
 _G.FlashDuration = 0.55
 
 local skillKeywords = {
@@ -82,7 +83,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1,-120,0,40)
 Title.Position = UDim2.new(0,10,0,10)
 Title.BackgroundTransparency = 1
-Title.Text = "Xu-秒殺"
+Title.Text = "Xu-秒殺系統"
 Title.TextColor3 = Color3.new(1,1,1)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
@@ -135,7 +136,7 @@ local SectionLabel = Instance.new("TextLabel")
 SectionLabel.Size = UDim2.new(1,-20,0,30)
 SectionLabel.Position = UDim2.new(0,10,0,360)
 SectionLabel.BackgroundTransparency = 1
-SectionLabel.Text = "秒殺(Alt)"
+SectionLabel.Text = "秒殺開關(Alt)"
 SectionLabel.TextColor3 = Color3.fromRGB(180,180,180)
 SectionLabel.Font = Enum.Font.SourceSansSemibold
 SectionLabel.TextSize = 16
@@ -155,15 +156,20 @@ Instance.new("UICorner", YFlashToggle)
 -- ── 邏輯處理 ─────────────────────────────────────────
 
 local function updateYFlashUI()
-    YFlashToggle.Text = _G.YFlash_Enabled and "開啟" or "關閉"
+    YFlashToggle.Text = _G.YFlash_Enabled and "開啟 (ON)" or "關閉 (OFF)"
     YFlashToggle.BackgroundColor3 = _G.YFlash_Enabled 
         and Color3.fromRGB(50,200,50) 
         or Color3.fromRGB(200,50,50)
 end
 
+-- 修正後的切換函數：加入冷卻防止重複偵測
 local function toggleYFlash()
+    if tick() - lastToggleTick < 0.2 then return end -- 防止 0.2 秒內重複按壓
+    lastToggleTick = tick()
+    
     _G.YFlash_Enabled = not _G.YFlash_Enabled
     updateYFlashUI()
+    print("YFlash 狀態:", _G.YFlash_Enabled)
 end
 
 local function refreshPlayers()
@@ -182,7 +188,9 @@ local function refreshPlayers()
             Instance.new("UICorner", btn)
             btn.MouseButton1Click:Connect(function()
                 selectedPlayer = plr
-                for _, other in pairs(playerButtons) do other.BackgroundColor3 = Color3.fromRGB(120,120,120) end
+                for _, other in pairs(playerButtons) do 
+                    if other and other.Parent then other.BackgroundColor3 = Color3.fromRGB(120,120,120) end
+                end
                 btn.BackgroundColor3 = Color3.fromRGB(80,180,80)
             end)
             playerButtons[plr] = btn
@@ -258,7 +266,8 @@ TeleportButton.MouseButton1Click:Connect(teleportToPlayer)
 YFlashToggle.MouseButton1Click:Connect(toggleYFlash)
 
 UserInputService.InputBegan:Connect(function(input, gp)
-    if gp then return end -- 如果在聊天則不觸發
+    if gp then return end 
+    
     if input.KeyCode == Enum.KeyCode.G then
         teleportToPlayer()
     elseif input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt then
@@ -268,7 +277,7 @@ end)
 
 CloseButton.MouseButton1Click:Connect(function()
     guiEnabled = false
-    ScreenGui.Enabled = false
+    ScreenGui:Destroy()
 end)
 
 MinimizeButton.MouseButton1Click:Connect(function()
@@ -278,17 +287,19 @@ MinimizeButton.MouseButton1Click:Connect(function()
     TeleportButton.Visible = visible
     SectionLabel.Visible   = visible
     YFlashToggle.Visible   = visible
-    MainFrame.Size = isMinimized and UDim2.new(0,200,0,50) or UDim2.new(0,300,0,520)
+    MainFrame.Size = isMinimized and UDim2.new(0,300,0,50) or UDim2.new(0,300,0,520)
+    MinimizeButton.Text = isMinimized and "+" or "-"
 end)
 
 Players.PlayerAdded:Connect(refreshPlayers)
 Players.PlayerRemoving:Connect(refreshPlayers)
 player.CharacterAdded:Connect(function()
-    task.wait(0.6)
+    task.wait(1)
     setupYFlashListener()
 end)
 
 -- 初始化
 refreshPlayers()
 setupYFlashListener()
-print("腳本已加載：[G] 瞬移 | [Alt] 切換 Y軸閃避")
+updateYFlashUI() -- 確保初始狀態正確
+print("Xu-秒殺系統已加載：[G] 瞬移 | [Alt] 切換秒殺開關")
