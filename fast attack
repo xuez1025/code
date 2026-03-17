@@ -2,8 +2,10 @@
 _G.FastAttack = true
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Player = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
+local Player = Players.LocalPlayer
 local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
 local RegisterHit = Net:WaitForChild("RE/RegisterHit")
@@ -20,6 +22,40 @@ local Settings = {
 local function IsAlive(char)
     local hum = char:FindFirstChild("Humanoid")
     return hum and hum.Health > 0
+end
+
+-- 取得範圍內有效目標
+local function GetValidTargets(root)
+    local targets = {}
+    for _, folder in ipairs({EnemiesFolder, CharactersFolder}) do
+        for _, obj in ipairs(folder:GetChildren()) do
+            if obj ~= Player.Character then
+                local head = obj:FindFirstChild("Head")
+                if head and IsAlive(obj) then
+                    local dist = (head.Position - root.Position).Magnitude
+                    if dist <= Settings.Distance then
+                        table.insert(targets, {obj, head})
+                        if #targets >= Settings.MaxTargets then
+                            return targets
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return targets
+end
+
+-- 執行一次攻擊
+local function PerformAttack()
+    local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    local targets = GetValidTargets(root)
+    if #targets > 0 then
+        RegisterAttack:FireServer(0)
+        RegisterHit:FireServer(targets[1][2], targets)  -- 第一個作為主要目標，送全部
+    end
 end
 
 -- GUI 建立
@@ -81,10 +117,10 @@ local function minimize()
     minimizedFrame = Instance.new("TextButton")
     minimizedFrame.Size = UDim2.fromOffset(50,50)
     minimizedFrame.Position = frame.Position
-    minimizedFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)  -- 黑底
+    minimizedFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
     minimizedFrame.BorderSizePixel = 0
     minimizedFrame.Text = "Xu"
-    minimizedFrame.TextColor3 = Color3.fromRGB(255,255,255)   -- 白字
+    minimizedFrame.TextColor3 = Color3.fromRGB(255,255,255)
     minimizedFrame.TextScaled = true
     minimizedFrame.Parent = gui
     minimizedFrame.MouseButton1Click:Connect(function()
@@ -93,7 +129,6 @@ local function minimize()
         minimizedFrame = nil
     end)
 end
-
 minimizeBtn.MouseButton1Click:Connect(minimize)
 
 -- 自動攻擊開關
@@ -105,12 +140,8 @@ toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
 toggleBtn.TextScaled = true
 toggleBtn.Text = "自動攻擊: 開"
 toggleBtn.Parent = frame
-toggleBtn.MouseButton1Click:Connect(function()
-    Settings.AutoClick = not Settings.AutoClick
-    toggleBtn.Text = "自動攻擊: "..(Settings.AutoClick and "開" or "關")
-end)
 
--- 攻擊距離標籤
+-- 攻擊距離標籤 + 輸入 + 提示
 local label = Instance.new("TextLabel")
 label.Size = UDim2.new(0,150,0,25)
 label.Position = UDim2.new(0,10,0,90)
@@ -121,7 +152,6 @@ label.Text = "攻擊距離: "..Settings.Distance.." 米"
 label.TextXAlignment = Enum.TextXAlignment.Left
 label.Parent = frame
 
--- 輸入框
 local inputBox = Instance.new("TextBox")
 inputBox.Size = UDim2.new(0,80,0,25)
 inputBox.Position = UDim2.new(0,170,0,90)
@@ -132,7 +162,6 @@ inputBox.ClearTextOnFocus = false
 inputBox.Text = tostring(Settings.Distance)
 inputBox.Parent = frame
 
--- 最大值提示
 local maxLabel = Instance.new("TextLabel")
 maxLabel.Size = UDim2.new(0,100,0,25)
 maxLabel.Position = UDim2.new(0,260,0,90)
@@ -166,21 +195,23 @@ slider.InputBegan:Connect(function(input)
         frame.Draggable = false
     end
 end)
+
 slider.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = false
         frame.Draggable = true
     end
 end)
+
 slider.InputChanged:Connect(function(input)
     if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
         local mouseX = input.Position.X - slider.AbsolutePosition.X
-        mouseX = math.clamp(mouseX,0,slider.AbsoluteSize.X)
-        local distance = (mouseX/slider.AbsoluteSize.X) * MAX_DISTANCE
-        Settings.Distance = distance
-        label.Text = "攻擊距離: "..math.floor(distance).." 米"
-        inputBox.Text = tostring(math.floor(distance))
-        fill.Size = UDim2.new(mouseX/slider.AbsoluteSize.X,0,1,0)
+        mouseX = math.clamp(mouseX, 0, slider.AbsoluteSize.X)
+        local distance = (mouseX / slider.AbsoluteSize.X) * MAX_DISTANCE
+        Settings.Distance = math.floor(distance)
+        label.Text = "攻擊距離: "..Settings.Distance.." 米"
+        inputBox.Text = tostring(Settings.Distance)
+        fill.Size = UDim2.new(mouseX / slider.AbsoluteSize.X, 0, 1, 0)
     end
 end)
 
@@ -188,53 +219,88 @@ inputBox.FocusLost:Connect(function(enterPressed)
     if enterPressed then
         local val = tonumber(inputBox.Text)
         if val then
-            local distance = math.clamp(val,0,MAX_DISTANCE)
-            Settings.Distance = distance
-            inputBox.Text = tostring(math.floor(distance))
-            label.Text = "攻擊距離: "..math.floor(distance).." 米"
-            fill.Size = UDim2.new(distance/MAX_DISTANCE,0,1,0)
+            local distance = math.clamp(val, 0, MAX_DISTANCE)
+            Settings.Distance = math.floor(distance)
+            inputBox.Text = tostring(Settings.Distance)
+            label.Text = "攻擊距離: "..Settings.Distance.." 米"
+            fill.Size = UDim2.new(distance / MAX_DISTANCE, 0, 1, 0)
         else
-            inputBox.Text = tostring(math.floor(Settings.Distance))
+            inputBox.Text = tostring(Settings.Distance)
         end
     end
 end)
 
--- 核心攻擊
-task.spawn(function()
-    while _G.FastAttack do
-        if Settings.AutoClick then
-            local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                local targets = {}
-                for _, folder in ipairs({EnemiesFolder, CharactersFolder}) do
-                    for _, obj in ipairs(folder:GetChildren()) do
-                        if obj ~= Player.Character then
-                            local head = obj:FindFirstChild("Head")
-                            if head and IsAlive(obj) then
-                                local dist = (head.Position - root.Position).Magnitude
-                                if dist <= Settings.Distance then
-                                    table.insert(targets,{obj,head})
-                                    if #targets >= Settings.MaxTargets then break end
-                                end
-                            end
-                        end
-                    end
-                    if #targets >= Settings.MaxTargets then break end
-                end
+-- ====================== 攻擊邏輯控制 ======================
 
-                local aliveTargets = {}
-                for _, t in ipairs(targets) do
-                    if IsAlive(t[1]) then
-                        table.insert(aliveTargets, t)
-                    end
-                end
+local autoConnection
+local manualConnection
 
-                if #aliveTargets > 0 then
-                    RegisterAttack:FireServer(0)
-                    RegisterHit:FireServer(aliveTargets[1][2], aliveTargets)
-                end
-            end
+local function startAuto()
+    if autoConnection then return end
+    autoConnection = RunService.Heartbeat:Connect(function()
+        if not Settings.AutoClick then return end
+        PerformAttack()
+        task.wait(Settings.AttackInterval)  -- 更精準的間隔控制
+    end)
+end
+
+local function stopAuto()
+    if autoConnection then
+        autoConnection:Disconnect()
+        autoConnection = nil
+    end
+end
+
+local function startManual()
+    if manualConnection then return end
+    manualConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if Settings.AutoClick then return end  -- 只在手動模式觸發
+        
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            PerformAttack()
         end
-        task.wait(Settings.AttackInterval)
+    end)
+end
+
+local function stopManual()
+    if manualConnection then
+        manualConnection:Disconnect()
+        manualConnection = nil
+    end
+end
+
+-- 開關按鈕事件
+toggleBtn.MouseButton1Click:Connect(function()
+    Settings.AutoClick = not Settings.AutoClick
+    toggleBtn.Text = "自動攻擊: " .. (Settings.AutoClick and "開" or "關")
+    
+    if Settings.AutoClick then
+        stopManual()
+        startAuto()
+    else
+        stopAuto()
+        startManual()
+    end
+end)
+
+-- 初始狀態
+if Settings.AutoClick then
+    startAuto()
+else
+    startManual()
+end
+
+-- 角色重生/離開時清理
+Player.CharacterRemoving:Connect(function()
+    stopAuto()
+    stopManual()
+end)
+
+-- 腳本結束時也清理（可選）
+gui.AncestryChanged:Connect(function()
+    if not gui:IsDescendantOf(PlayerGui) then
+        stopAuto()
+        stopManual()
     end
 end)
