@@ -1,124 +1,115 @@
---!strict
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+-- ==================== Blox Fruits Fruits M1 Fast Attack GUI ====================
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("Fruits Fast Attack", "Ocean")  -- 你可以改顏色: Ocean, Sentinel, Midnight 等
 
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
+local Tab = Window:NewTab("Fast Attack")
+local Section = Tab:NewSection("Fruits M1 Fast Attack")
 
-player.CharacterAdded:Connect(function(char)
-	character = char
-end)
+-- ==================== 設定變數 ====================
+_G.Config = _G.Config or {}
+_G.Config.FastAttack = _G.Config.FastAttack or {
+    FruitsM1 = false,
+    FruitsM1Delay = 0.1,   -- 攻擊間隔 (越小越快，但太小可能被檢測)
+    SelectFruits = "Kitsune"  -- 預設水果
+}
 
--- ================= GUI =================
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
+local FruitsList = {
+    "Kitsune", "Control", "Dragon", "Gas", "Pain",
+    "Blade", "T-Rex", "Yeti", "Tiger"
+}
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 180)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -90)
-MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-MainFrame.BorderSizePixel = 0
-MainFrame.Parent = ScreenGui
+-- ==================== 主要功能 ====================
+local function GetFruitsRemote()
+    local LocalPlayer = game.Players.LocalPlayer
+    local char = LocalPlayer.Character
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    local tool = nil
 
--- 拖動系統
-local dragging = false
-local dragInput
-local dragStart
-local startPos
+    -- 檢查角色身上
+    if char then
+        for _, fruitName in ipairs(FruitsList) do
+            if _G.Config.FastAttack.SelectFruits == fruitName then
+                tool = char:FindFirstChild(fruitName .. "-" .. fruitName)
+                break
+            end
+        end
+        if tool then
+            return tool:FindFirstChild("LeftClickRemote", true)
+        end
+    end
 
-local function update(input)
-	local delta = input.Position - dragStart
-	MainFrame.Position = UDim2.new(
-		startPos.X.Scale,
-		startPos.X.Offset + delta.X,
-		startPos.Y.Scale,
-		startPos.Y.Offset + delta.Y
-	)
+    -- 檢查背包
+    if backpack then
+        for _, fruitName in ipairs(FruitsList) do
+            if _G.Config.FastAttack.SelectFruits == fruitName then
+                tool = backpack:FindFirstChild(fruitName .. "-" .. fruitName)
+                break
+            end
+        end
+        if tool then
+            return tool:FindFirstChild("LeftClickRemote", true)
+        end
+    end
+    return nil
 end
 
-MainFrame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragStart = input.Position
-		startPos = MainFrame.Position
+-- ==================== Fast Attack Loop ====================
+local attackConnection = nil
 
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
+local function StartFastAttack()
+    if attackConnection then return end
+
+    attackConnection = task.spawn(function()
+        while _G.Config.FastAttack.FruitsM1 do
+            task.wait(_G.Config.FastAttack.FruitsM1Delay)
+            
+            local LocalPlayer = game.Players.LocalPlayer
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local remote = GetFruitsRemote()
+
+            if char and hrp and remote then
+                local direction = -hrp.CFrame.UpVector
+                remote:FireServer(direction, 2, true)
+            end
+        end
+    end)
+end
+
+local function StopFastAttack()
+    _G.Config.FastAttack.FruitsM1 = false
+    if attackConnection then
+        task.cancel(attackConnection)
+        attackConnection = nil
+    end
+end
+
+-- ==================== GUI 元件 ====================
+Section:NewToggle("開啟 Fruits M1 Fast Attack", "啟用後會自動快速點擊水果左鍵", function(state)
+    _G.Config.FastAttack.FruitsM1 = state
+    if state then
+        StartFastAttack()
+    else
+        StopFastAttack()
+    end
 end)
 
-MainFrame.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement then
-		dragInput = input
-	end
+Section:NewSlider("攻擊延遲 (秒)", "數值越小攻擊越快 (建議 0.05 ~ 0.2)", 100, 0, 1, function(value)
+    _G.Config.FastAttack.FruitsM1Delay = value
+end, true)  -- true = 顯示小數點
+
+Section:NewDropdown("選擇水果", "選擇你要快速攻擊的水果", FruitsList, function(selected)
+    _G.Config.FastAttack.SelectFruits = selected
+    print("已切換水果: " .. selected)
 end)
 
-UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		update(input)
-	end
+-- 額外小功能：一鍵停止
+Section:NewButton("強制停止 Fast Attack", "立即關閉攻擊", function()
+    StopFastAttack()
+    Library:Notify("Fast Attack 已停止", "所有 Fruits M1 攻擊已關閉", 3)
 end)
 
--- 關閉按鈕
-local CloseButton = Instance.new("TextButton")
-CloseButton.Size = UDim2.new(0, 30, 0, 30)
-CloseButton.Position = UDim2.new(1, -35, 0, 5)
-CloseButton.Text = "X"
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-CloseButton.Parent = MainFrame
+-- ==================== 通知與結束 ====================
+Library:Notify("腳本載入成功", "Fruits Fast Attack GUI 已準備好使用！", 5)
 
-CloseButton.MouseButton1Click:Connect(function()
-	ScreenGui:Destroy()
-end)
-
--- ================= Auto Attack =================
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0, 260, 0, 45)
-ToggleButton.Position = UDim2.new(0.5, -130, 0, 50)
-ToggleButton.Text = "Auto Attack: OFF"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-ToggleButton.Parent = MainFrame
-
-local autoAttack = false
-
-ToggleButton.MouseButton1Click:Connect(function()
-	autoAttack = not autoAttack
-	ToggleButton.Text = "Auto Attack: " .. (autoAttack and "ON" or "OFF")
-end)
-
--- ================= 攻擊設定 =================
-local attackInterval = 0.01 -- 攻速
-local attackTimer = 0
-
-local RANGE_MULTIPLIER = 1000 -- 永久放大倍數
-
--- ================= 核心攻擊邏輯 =================
-RunService.Heartbeat:Connect(function(dt)
-	if not autoAttack then return end
-	if not character then return end
-
-	local tool = character:FindFirstChildOfClass("Tool")
-	if not tool then return end
-
-	attackTimer += dt
-	if attackTimer < attackInterval then return end
-	attackTimer = 0
-
-	local handle = tool:FindFirstChild("Handle")
-	if handle and not handle:GetAttribute("HitboxExpanded") then
-		-- 永久放大 Hitbox
-		handle.Size = handle.Size * RANGE_MULTIPLIER
-		handle.Transparency = 1
-		handle.CanCollide = false
-		handle:SetAttribute("HitboxExpanded", true)
-	end
-
-	tool:Activate()
-end)
+print("✅ Fruits M1 Fast Attack GUI 已載入完成！")
